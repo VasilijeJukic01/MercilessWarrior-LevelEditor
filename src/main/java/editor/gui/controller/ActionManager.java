@@ -46,6 +46,7 @@ public class ActionManager {
         actions.put(ActionType.SELECT, new SelectAction());
         actions.put(ActionType.COPY, new CopyAction());
         actions.put(ActionType.PASTE, new PasteAction());
+        actions.put(ActionType.GENERATE_LEVEL, new GenerateLevelAction());
     }
 
     public AbstractEditorAction getAction(ActionType type) {

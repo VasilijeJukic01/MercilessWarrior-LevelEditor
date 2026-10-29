@@ -18,6 +18,8 @@ public class TabToolBar extends JToolBar {
         this.addSeparator();
         this.add(EditorFrame.getInstance().getActionManager().getAction(ActionType.EXPORT).createButton());
         this.addSeparator();
+        this.add(EditorFrame.getInstance().getActionManager().getAction(ActionType.GENERATE_LEVEL).createButton());
+        this.addSeparator();
         this.addSeparator();
         this.add(EditorFrame.getInstance().getActionManager().getAction(ActionType.ADD_NODE).createButton());
         this.addSeparator();

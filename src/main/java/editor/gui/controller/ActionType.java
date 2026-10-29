@@ -27,5 +27,6 @@ public enum ActionType {
     HELP,
     SELECT,
     COPY,
-    PASTE
+    PASTE,
+    GENERATE_LEVEL
 }
