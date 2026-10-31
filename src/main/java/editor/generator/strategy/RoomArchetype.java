@@ -1,10 +1,14 @@
 package editor.generator.strategy;
 
+/**
+ * Enumerates the available procedural room generation archetypes and their corresponding strategies.
+ */
 public enum RoomArchetype {
-    MULTI_PATH_HOLLOW("Multi-Path Forest Hollow (Level 1 & 4 Style)", new MultiPathHollowStrategy()),
-    SMASH_GAUNTLET("Two-Tier Trap Gauntlet (Level 2 Style)", new SmashGauntletStrategy()),
-    VERTICAL_SERPENT("Vertical S-Curve Shaft (Level 7 Style)", new VerticalSerpentStrategy()),
-    CHAMBER_ARENA("Tiered Combat Chamber (Level 3 & 6 Style)", new ChamberArenaStrategy());
+    NOISE("True Random Cave & Cliffs", new NoiseStrategy()),
+    MULTI_PATH_HOLLOW("Multi-Path Forest Hollow", new MultiPathHollowStrategy()),
+    SMASH_GAUNTLET("Two-Tier Trap Gauntlet", new SmashGauntletStrategy()),
+    VERTICAL_SERPENT("Vertical S-Curve Shaft", new VerticalSerpentStrategy()),
+    CHAMBER_ARENA("Tiered Combat Chamber", new ChamberArenaStrategy());
 
     private final String label;
     private final RoomCarverStrategy strategy;

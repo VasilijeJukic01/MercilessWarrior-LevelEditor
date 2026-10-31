@@ -7,6 +7,9 @@ import editor.model.repository.components.Level;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A composite undoable command that replaces the entire node list and dimensions of a {@link Level} atomically in a single step.
+ */
 public class BatchLevelCommand implements Command {
 
     private final Level level;
@@ -15,6 +18,14 @@ public class BatchLevelCommand implements Command {
     private final int oldWidth, oldHeight;
     private final int newWidth, newHeight;
 
+    /**
+     * Constructs a batch level command capturing the previous and new level states.
+     *
+     * @param level       The target level to modify.
+     * @param newChildren The replacement list of tile nodes.
+     * @param newWidth    The new grid width in tiles.
+     * @param newHeight   The new grid height in tiles.
+     */
     public BatchLevelCommand(Level level, List<Node> newChildren, int newWidth, int newHeight) {
         this.level = level;
         this.oldChildren = new ArrayList<>(level.getChildren());

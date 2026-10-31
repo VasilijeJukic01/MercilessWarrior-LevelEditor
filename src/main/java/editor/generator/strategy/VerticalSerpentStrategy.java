@@ -6,6 +6,9 @@ import editor.model.repository.components.Level;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Carves a multi-tier S-curve vertical shaft with alternating left and right drop chutes.
+ */
 public class VerticalSerpentStrategy implements RoomCarverStrategy {
 
     @Override
@@ -26,5 +29,4 @@ public class VerticalSerpentStrategy implements RoomCarverStrategy {
         }
         carveRect(solid, w - 6, h - 7, 6, 4, w, h);
     }
-
 }

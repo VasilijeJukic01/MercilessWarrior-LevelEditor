@@ -7,6 +7,9 @@ import editor.gui.view.tab.TabView;
 
 import java.awt.event.ActionEvent;
 
+/**
+ * Toolbar action that opens the {@link GenerateLevelDialog} for the currently active level tab.
+ */
 public class GenerateLevelAction extends AbstractEditorAction {
 
     public GenerateLevelAction() {

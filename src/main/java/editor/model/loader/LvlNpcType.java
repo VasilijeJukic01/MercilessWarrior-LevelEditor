@@ -8,9 +8,9 @@ public enum LvlNpcType {
     SIR_DEJANOVIC("Sir Dejanovic", new Color(103, 171, 235, 180)),
     KRYSANTHE("Krysanthe", new Color(255, 112, 238, 180)),
     RORIC("Roric", new Color(156, 221, 74, 180)),
-    MITCH_OF_ASSIS("Roric", new Color(255, 228, 83, 180)),
-    ANDELLIA("Roric", new Color(0, 34, 223, 180)),
-    EERYN("Roric", new Color(124, 0, 188, 180)),
+    MITCH_OF_ASSIS("Mitch", new Color(255, 228, 83, 180)),
+    ANDELLIA("Andellia", new Color(0, 34, 223, 180)),
+    EERYN("Eeryn", new Color(124, 0, 188, 180)),
     MAX("", Color.BLACK);
 
     private final String label;
