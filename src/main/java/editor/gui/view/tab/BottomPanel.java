@@ -1,6 +1,9 @@
 package editor.gui.view.tab;
 
 import editor.core.Framework;
+import editor.gui.view.EditorFrame;
+import editor.logger.LogType;
+import editor.model.repository.components.Tile;
 import editor.settings.SettingsKey;
 
 import javax.swing.*;
@@ -11,14 +14,17 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.Objects;
 
-import static editor.constants.Constants.*;
+import static editor.constants.Constants.EDITOR_PICKER_COL;
+import static editor.constants.Constants.TILE_SIZE;
 
+/**
+ * Panel displaying selectable tile palettes, layer selectors, tileset selectors, the Smart Auto-Tile Brush toggle, and Eyedropper selection sync.
+ */
 public class BottomPanel extends JPanel {
 
     private final TabView tabView;
 
     private BufferedImage[] tiles, decorations, objects, enemies, triggers, npcs;
-
     private final BufferedImage[] player;
 
     private JPanel panel;
@@ -27,6 +33,7 @@ public class BottomPanel extends JPanel {
 
     private JComboBox<Integer> cbLayers;
     private JComboBox<String> cbTypes, cbTileset;
+    private JCheckBox chkSmartBrush;
 
     public BottomPanel(TabView tabView) {
         this.tabView = tabView;
@@ -37,8 +44,8 @@ public class BottomPanel extends JPanel {
 
     private void loadTileset() {
         String set = (String) tabView.getSettings().getParameter(SettingsKey.TILE_SET);
-        this.tiles = Framework.getInstance().getStorage().getImageMap().get(set+"Tiles");
-        this.decorations = Framework.getInstance().getStorage().getImageMap().get(set+"Deco");
+        this.tiles = Framework.getInstance().getStorage().getImageMap().get(set + "Tiles");
+        this.decorations = Framework.getInstance().getStorage().getImageMap().get(set + "Deco");
         this.objects = Framework.getInstance().getStorage().getImageMap().get("Objects");
         this.enemies = Framework.getInstance().getStorage().getImageMap().get("Enemies");
         this.triggers = Framework.getInstance().getStorage().getImageMap().get("Triggers");
@@ -47,14 +54,8 @@ public class BottomPanel extends JPanel {
 
     private void init() {
         this.setLayout(new BorderLayout());
-
-        panel = new JPanel();
-        BorderLayout borderLayout = new BorderLayout();
-        panel.setLayout(borderLayout);
+        panel = new JPanel(new GridBagLayout());
         initTopPanel();
-
-        GridBagLayout layout = new GridBagLayout();
-        panel.setLayout(layout);
 
         GridBagConstraints constraints = new GridBagConstraints();
         constraints.fill = GridBagConstraints.BOTH;
@@ -90,8 +91,7 @@ public class BottomPanel extends JPanel {
         this.cbTypes = new JComboBox<>(cbTypeNames);
         cbTypes.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
-                String selectedItem = (String) e.getItem();
-                updateImagePanel(selectedItem);
+                updateImagePanel((String) e.getItem());
             }
         });
 
@@ -99,20 +99,23 @@ public class BottomPanel extends JPanel {
         cbLayers = new JComboBox<>(new Integer[]{3, 5});
         cbLayers.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
-                Integer selectedItem = (Integer) e.getItem();
-                saveLayer(selectedItem);
+                saveLayer((Integer) e.getItem());
             }
         });
-
 
         JLabel lbSet = new JLabel("Tileset:");
         cbTileset = new JComboBox<>(Framework.getInstance().getStorage().getTilesetNames());
         cbTileset.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
-                String selectedItem = (String) e.getItem();
-                getTileset(selectedItem);
+                getTileset((String) e.getItem());
             }
         });
+
+        chkSmartBrush = new JCheckBox("Smart Auto-Tile Brush", true);
+        chkSmartBrush.setToolTipText("Automatically updates surrounding 8-neighbor edges and corners while painting or erasing Layer 3 terrain");
+        chkSmartBrush.addItemListener(e ->
+                tabView.getSettings().updateParameter(SettingsKey.SMART_BRUSH, chkSmartBrush.isSelected())
+        );
 
         topPanel.add(lbSet);
         topPanel.add(cbTileset);
@@ -120,11 +123,73 @@ public class BottomPanel extends JPanel {
         topPanel.add(cbTypes);
         topPanel.add(lbLayer);
         topPanel.add(cbLayers);
+        topPanel.add(chkSmartBrush);
         this.add(topPanel, BorderLayout.NORTH);
     }
 
+    /**
+     * Synchronizes the palette category, layer, and selected tile index with a tile picked
+     * from the canvas via the Eyedropper tool (Alt+Click or Middle-Click).
+     *
+     * @param picked The tile clicked on the canvas.
+     */
+    public void pickTileFromCanvas(Tile picked) {
+        if (picked == null) return;
+
+        String category;
+        int index;
+        switch (picked.getTileType()) {
+            case SOLID -> {
+                category = "Solid Tiles";
+                index = picked.getRed();
+            }
+            case DECO -> {
+                category = "Decorations";
+                index = picked.getBlue();
+            }
+            case OBJECT -> {
+                category = "Objects";
+                index = picked.getBlue();
+            }
+            case ENEMY -> {
+                category = "Enemies";
+                index = picked.getGreen();
+            }
+            case PLAYER -> {
+                category = "Player";
+                index = 0;
+            }
+            case TRIGGER -> {
+                category = "Triggers";
+                index = picked.getBlue();
+            }
+            case NPC -> {
+                category = "NPCs";
+                index = picked.getBlue();
+            }
+            default -> {
+                return;
+            }
+        }
+
+        cbTypes.setSelectedItem(category);
+        updateImagePanel(category);
+        cbLayers.setSelectedItem(picked.getLayer());
+        saveLayer(picked.getLayer());
+
+        this.lastSelectedIndex = this.selectedIndex;
+        this.selectedIndex = index;
+        tabView.getSettings().updateParameter(SettingsKey.SELECTED_TILE, selectedIndex);
+        EditorFrame.getInstance().getProjectView().startAddState();
+        panel.repaint();
+
+        Framework.getInstance().log("Eyedropper picked: " + category + " [ID=" + index + ", Layer=" + picked.getLayer() + "]", LogType.INFORMATION);
+    }
+
     private void saveLayer(Integer selectedItem) {
-        tabView.getSettings().updateParameter(SettingsKey.SELECTED_LAYER, selectedItem);
+        if (selectedItem != null) {
+            tabView.getSettings().updateParameter(SettingsKey.SELECTED_LAYER, selectedItem);
+        }
     }
 
     private void getTileset(String selectedItem) {
@@ -139,40 +204,42 @@ public class BottomPanel extends JPanel {
         String selectedSet = "";
         Integer[] layerOptions = null;
 
-        if (selectedItem.equals("Solid Tiles")) {
-            selectedSet = "Solid Tiles";
-            layerOptions = new Integer[]{3, 5};
-            selectedImages = tiles;
-        }
-        else if (selectedItem.equals("Decorations")) {
-            selectedSet = "Decorations";
-            layerOptions = new Integer[]{0, 1, 2, 4};
-            selectedImages = decorations;
-        }
-        else if (selectedItem.equals("Objects")) {
-            selectedSet = "Objects";
-            layerOptions = new Integer[]{5};
-            selectedImages = objects;
-        }
-        else if (selectedItem.equals("Enemies")) {
-            selectedSet = "Enemies";
-            layerOptions = new Integer[]{5};
-            selectedImages = enemies;
-        }
-        else if (selectedItem.equals("Player")) {
-            selectedSet = "Player";
-            layerOptions = new Integer[]{5};
-            selectedImages = player;
-        }
-        else if (selectedItem.equals("Triggers")) {
-            selectedSet = "Triggers";
-            layerOptions = new Integer[]{5};
-            selectedImages = triggers;
-        }
-        else if (selectedItem.equals("NPCs")) {
-            selectedSet = "NPCs";
-            layerOptions = new Integer[]{5};
-            selectedImages = npcs;
+        switch (selectedItem) {
+            case "Solid Tiles" -> {
+                selectedSet = "Solid Tiles";
+                layerOptions = new Integer[]{3, 5};
+                selectedImages = tiles;
+            }
+            case "Decorations" -> {
+                selectedSet = "Decorations";
+                layerOptions = new Integer[]{0, 1, 2, 4};
+                selectedImages = decorations;
+            }
+            case "Objects" -> {
+                selectedSet = "Objects";
+                layerOptions = new Integer[]{5};
+                selectedImages = objects;
+            }
+            case "Enemies" -> {
+                selectedSet = "Enemies";
+                layerOptions = new Integer[]{5};
+                selectedImages = enemies;
+            }
+            case "Player" -> {
+                selectedSet = "Player";
+                layerOptions = new Integer[]{5};
+                selectedImages = player;
+            }
+            case "Triggers" -> {
+                selectedSet = "Triggers";
+                layerOptions = new Integer[]{5};
+                selectedImages = triggers;
+            }
+            case "NPCs" -> {
+                selectedSet = "NPCs";
+                layerOptions = new Integer[]{5};
+                selectedImages = npcs;
+            }
         }
 
         if (selectedImages != null) {
@@ -208,7 +275,6 @@ public class BottomPanel extends JPanel {
         updateImagePanel((String) Objects.requireNonNull(cbTypes.getSelectedItem()));
     }
 
-    // [Class] Image panel
     private class ImagePanel extends JPanel {
 
         private final BufferedImage image;
@@ -257,5 +323,4 @@ public class BottomPanel extends JPanel {
         }
 
     }
-
 }

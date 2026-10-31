@@ -13,6 +13,8 @@ public class StateManager {
     private MoveState moveState;
     private SelectState selectState;
     private PasteState pasteState;
+    private BucketState bucketState;
+    private RectFillState rectFillState;
 
     public StateManager() {
         init();
@@ -25,6 +27,8 @@ public class StateManager {
         this.moveState = new MoveState();
         this.selectState = new SelectState();
         this.pasteState = new PasteState();
+        this.bucketState = new BucketState();
+        this.rectFillState = new RectFillState();
         this.currentState = moveState;
     }
 
@@ -56,8 +60,19 @@ public class StateManager {
         this.currentState = pasteState;
     }
 
+    public void setBucketState() {
+        this.currentState = bucketState;
+    }
+
+    public void setRectFillState() {
+        this.currentState = rectFillState;
+    }
+
     public State<TabView> getSelectState() {
         return selectState;
     }
 
+    public RectFillState getRectFillState() {
+        return rectFillState;
+    }
 }

@@ -47,6 +47,8 @@ public class ActionManager {
         actions.put(ActionType.COPY, new CopyAction());
         actions.put(ActionType.PASTE, new PasteAction());
         actions.put(ActionType.GENERATE_LEVEL, new GenerateLevelAction());
+        actions.put(ActionType.BUCKET_FILL, new BucketFillAction());
+        actions.put(ActionType.RECT_FILL, new RectFillAction());
     }
 
     public AbstractEditorAction getAction(ActionType type) {

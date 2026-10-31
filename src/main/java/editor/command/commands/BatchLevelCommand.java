@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A composite undoable command that replaces the entire node list and dimensions of a {@link Level} atomically in a single step.
+ * A composite undoable command that replaces the node list and dimensions of a {@link Level} atomically in a single step.
  */
 public class BatchLevelCommand implements Command {
 
@@ -19,16 +19,18 @@ public class BatchLevelCommand implements Command {
     private final int newWidth, newHeight;
 
     /**
-     * Constructs a batch level command capturing the previous and new level states.
-     *
-     * @param level       The target level to modify.
-     * @param newChildren The replacement list of tile nodes.
-     * @param newWidth    The new grid width in tiles.
-     * @param newHeight   The new grid height in tiles.
+     * Constructs a batch command using the level's current children as the previous state.
      */
     public BatchLevelCommand(Level level, List<Node> newChildren, int newWidth, int newHeight) {
+        this(level, level.getChildren(), newChildren, newWidth, newHeight);
+    }
+
+    /**
+     * Constructs a batch command with explicit pre-stroke and post-stroke node lists.
+     */
+    public BatchLevelCommand(Level level, List<Node> oldChildren, List<Node> newChildren, int newWidth, int newHeight) {
         this.level = level;
-        this.oldChildren = new ArrayList<>(level.getChildren());
+        this.oldChildren = new ArrayList<>(oldChildren);
         this.newChildren = new ArrayList<>(newChildren);
         this.oldWidth = level.getWidth();
         this.oldHeight = level.getHeight();

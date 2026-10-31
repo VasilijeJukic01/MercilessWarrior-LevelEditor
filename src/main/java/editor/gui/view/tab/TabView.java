@@ -66,6 +66,7 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         this.settings.addParameter(SettingsKey.BACKGROUND, null);
         this.settings.addParameter(SettingsKey.TILE_SET, "Forest");
         this.settings.addParameter(SettingsKey.EXPORT_TYPE, "Both");
+        this.settings.addParameter(SettingsKey.SMART_BRUSH, true);
     }
 
     private void initBars() {
@@ -195,6 +196,10 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
 
     public TabKeyListener getTabKeyListener() {
         return tabKeyListener;
+    }
+
+    public BottomPanel getBottomPanel() {
+        return bottomPanel;
     }
 
     // Observer

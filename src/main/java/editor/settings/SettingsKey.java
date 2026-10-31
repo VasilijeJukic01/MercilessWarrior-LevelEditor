@@ -12,5 +12,6 @@ public enum SettingsKey {
     EDIT_SELECTION,
     BACKGROUND,
     TILE_SET,
-    EXPORT_TYPE
+    EXPORT_TYPE,
+    SMART_BRUSH
 }

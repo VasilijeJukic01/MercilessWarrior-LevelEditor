@@ -1,6 +1,7 @@
 package editor.state.states;
 
 import editor.command.Command;
+import editor.command.commands.CompositeCommand;
 import editor.command.commands.MoveNodeCommand;
 import editor.core.Framework;
 import editor.gui.view.tab.TabView;
@@ -14,6 +15,9 @@ import java.util.List;
 
 import static editor.constants.Constants.TILE_SIZE;
 
+/**
+ * State responsible for dragging selected tiles across the grid as a single undoable operation.
+ */
 public class MoveState implements State<TabView> {
 
     private Point startPoint;
@@ -85,13 +89,16 @@ public class MoveState implements State<TabView> {
         int dx = finalTileX - startPoint.x;
         int dy = finalTileY - startPoint.y;
 
-        for (int i = 0; i < selectionSnapshot.size(); i++) {
-            Tile tile = selectionSnapshot.get(i);
-            Point originalPos = originalPositions.get(i);
-            tile.setX(originalPos.x);
-            tile.setY(originalPos.y);
-            Command moveCommand = new MoveNodeCommand(tabView.getLevel(), tile, originalPos.x, originalPos.y, originalPos.x + dx, originalPos.y + dy);
-            Framework.getInstance().getGui().getCommandManager().addCommand(moveCommand);
+        if (dx != 0 || dy != 0) {
+            List<Command> moveCommands = new ArrayList<>();
+            for (int i = 0; i < selectionSnapshot.size(); i++) {
+                Tile tile = selectionSnapshot.get(i);
+                Point originalPos = originalPositions.get(i);
+                tile.setX(originalPos.x);
+                tile.setY(originalPos.y);
+                moveCommands.add(new MoveNodeCommand(tabView.getLevel(), tile, originalPos.x, originalPos.y, originalPos.x + dx, originalPos.y + dy));
+            }
+            Framework.getInstance().getGui().getCommandManager().addCommand(new CompositeCommand(moveCommands));
         }
 
         isDragging = false;

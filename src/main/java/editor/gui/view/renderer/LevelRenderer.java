@@ -63,6 +63,7 @@ public class LevelRenderer implements Renderer {
         renderSelection(g);
         renderGrid(g);
         ((SelectState) Framework.getInstance().getGui().getProjectView().getStateManager().getSelectState()).renderSelection(g);
+        Framework.getInstance().getGui().getProjectView().getStateManager().getRectFillState().renderPreview(g);
     }
 
     private void renderBackground(Graphics g) {

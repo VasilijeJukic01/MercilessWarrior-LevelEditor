@@ -2,6 +2,7 @@ package editor.state.states;
 
 import editor.command.Command;
 import editor.command.commands.AddNodeCommand;
+import editor.command.commands.CompositeCommand;
 import editor.core.Clipboard;
 import editor.core.Framework;
 import editor.gui.view.tab.TabView;
@@ -9,10 +10,14 @@ import editor.logger.LogType;
 import editor.model.repository.components.Tile;
 import editor.state.State;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static editor.constants.Constants.TILE_SIZE;
 
+/**
+ * State responsible for pasting clipboard tiles onto the canvas as a single undoable command.
+ */
 public class PasteState implements State<TabView> {
 
     @Override
@@ -31,17 +36,17 @@ public class PasteState implements State<TabView> {
         int offsetX = mouseTileX - minX;
         int offsetY = mouseTileY - minY;
 
+        List<Command> pasteCommands = new ArrayList<>();
         for (Tile original : copiedTiles) {
             Tile newTile = new Tile(original.getName(), tabView.getLevel(), original.getTileType(), original.getX() + offsetX, original.getY() + offsetY, original.getRed(), original.getGreen(), original.getBlue());
             newTile.setLayer(original.getLayer());
             newTile.setRotation(original.getRotation());
             newTile.setScaleX(original.getScaleX());
             newTile.setScaleY(original.getScaleY());
-
-            Command command = new AddNodeCommand(tabView.getLevel(), newTile);
-            Framework.getInstance().getGui().getCommandManager().addCommand(command);
+            pasteCommands.add(new AddNodeCommand(tabView.getLevel(), newTile));
         }
 
+        Framework.getInstance().getGui().getCommandManager().addCommand(new CompositeCommand(pasteCommands));
         Framework.getInstance().log("Pasted " + copiedTiles.size() + " tiles.", LogType.INFORMATION);
     }
 

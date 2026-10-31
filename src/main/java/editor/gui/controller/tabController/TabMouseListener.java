@@ -2,12 +2,20 @@ package editor.gui.controller.tabController;
 
 import editor.gui.view.EditorFrame;
 import editor.gui.view.tab.TabView;
+import editor.model.repository.Node;
+import editor.model.repository.components.Tile;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.List;
 import java.util.function.BiConsumer;
 
+import static editor.constants.Constants.TILE_SIZE;
+
+/**
+ * Handles canvas mouse interactions including tool clicks/drags, right-click panning,and Eyedropper tile picking via Middle-Click or Alt+Left-Click.
+ */
 public class TabMouseListener implements MouseListener, MouseMotionListener {
 
     private final TabView tabView;
@@ -24,13 +32,14 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
     }
 
     @Override
-    public void mouseClicked(MouseEvent e) {
-
-    }
+    public void mouseClicked(MouseEvent e) {}
 
     @Override
     public void mousePressed(MouseEvent e) {
-        if (SwingUtilities.isLeftMouseButton(e)) {
+        if (SwingUtilities.isMiddleMouseButton(e) || (SwingUtilities.isLeftMouseButton(e) && e.isAltDown())) {
+            performAction(e, this::eyedropTileAt);
+        }
+        else if (SwingUtilities.isLeftMouseButton(e)) {
             performAction(e, (x, y) -> EditorFrame.getInstance().getProjectView().clickPerform(x, y, tabView));
         }
         else if (SwingUtilities.isRightMouseButton(e)) {
@@ -41,7 +50,7 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
 
     @Override
     public void mouseReleased(MouseEvent e) {
-        if (SwingUtilities.isLeftMouseButton(e)) {
+        if (SwingUtilities.isLeftMouseButton(e) && !e.isAltDown()) {
             performAction(e, (x, y) -> EditorFrame.getInstance().getProjectView().releasePerform(x, y, tabView));
         }
         else if (SwingUtilities.isRightMouseButton(e)) {
@@ -52,7 +61,7 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
 
     @Override
     public void mouseDragged(MouseEvent e) {
-        if (SwingUtilities.isLeftMouseButton(e)) {
+        if (SwingUtilities.isLeftMouseButton(e) && !e.isAltDown()) {
             performAction(e, (x, y) -> EditorFrame.getInstance().getProjectView().dragPerform(x, y, tabView));
         }
         else if (SwingUtilities.isRightMouseButton(e) && lastPanPoint != null) {
@@ -61,6 +70,18 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
             tabView.setDx(tabView.getDx() - deltaX);
             tabView.setDy(tabView.getDy() - deltaY);
             lastPanPoint = e.getPoint();
+        }
+    }
+
+    private void eyedropTileAt(int worldX, int worldY) {
+        int tileX = worldX / TILE_SIZE;
+        int tileY = worldY / TILE_SIZE;
+        List<Node> children = tabView.getLevel().getChildren();
+        for (int i = children.size() - 1; i >= 0; i--) {
+            if (children.get(i) instanceof Tile t && t.getX() == tileX && t.getY() == tileY) {
+                tabView.getBottomPanel().pickTileFromCanvas(t);
+                return;
+            }
         }
     }
 

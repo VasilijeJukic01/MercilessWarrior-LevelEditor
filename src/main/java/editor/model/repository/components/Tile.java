@@ -52,6 +52,10 @@ public class Tile extends Node {
         this.blue = blue;
     }
 
+    public void setRed(int red) {
+        this.red = red;
+    }
+
     public int getX() {
         return x;
     }

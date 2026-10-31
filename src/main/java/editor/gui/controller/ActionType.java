@@ -28,5 +28,7 @@ public enum ActionType {
     SELECT,
     COPY,
     PASTE,
-    GENERATE_LEVEL
+    GENERATE_LEVEL,
+    BUCKET_FILL,
+    RECT_FILL
 }

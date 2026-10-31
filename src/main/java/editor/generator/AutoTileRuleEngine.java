@@ -379,7 +379,7 @@ public class AutoTileRuleEngine {
     /**
      * Resolves the exact MossyTiles sprite index (0-48) from the 8-directional neighbor occupancy around (x, y).
      */
-    private int pickExactTileId(boolean[][] solid, int x, int y, int w, int h) {
+    public int pickExactTileId(boolean[][] solid, int x, int y, int w, int h) {
         boolean u  = isSolid(solid, x, y - 1, w, h);
         boolean d  = isSolid(solid, x, y + 1, w, h);
         boolean l  = isSolid(solid, x - 1, y, w, h);
@@ -389,44 +389,126 @@ public class AutoTileRuleEngine {
         boolean dl = isSolid(solid, x - 1, y + 1, w, h);
         boolean dr = isSolid(solid, x + 1, y + 1, w, h);
 
+        // Isolated 1x1 block (0 cardinal neighbors)
         if (!u && !d && !l && !r) return 24;
 
+        // Thin 1-tile horizontal bridge (!u && !d)
         if (!u && !d) {
             if (!l && r) return 21;
             if (l && !r) return 23;
             return 22;
         }
 
+        // Thin 1-tile vertical pillar (!l && !r)
         if (!l && !r) {
             if (!u && d) return 3;
             if (u && !d) return 17;
             return 10;
         }
 
-        if (!u && d && !l && r) return 0;
-        if (!u && d && l && !r) return 2;
-        if (u && !d && !l && r) return 14;
-        if (u && !d && l && !r) return 16;
+        // Outer Convex Corners (2 adjacent cardinal neighbors)
+        if (!u && d && !l && r) return dr ? 0 : 32;
+        if (!u && d && l && !r) return dl ? 2 : 34;
+        if (u && !d && !l && r) return ur ? 14 : 46;
+        if (u && !d && l && !r) return ul ? 16 : 48;
 
-        if (!u && d && l && r) return 1;
-        if (u && !d && l && r) return 15;
-        if (u && d && !l && r) return 7;
-        if (u && d && l && !r) return 9;
-
-        // When all 4 cardinal neighbors are solid, diagonal air cells determine concave inner corners and T-junctions
-        if (u && d && l && r) {
-            if (!ur && !dr && ul && dl) return 20;
-            if (!ul && !dl && ur && dr) return 13;
-            if (!ur && !ul) return 1;
-            if (!dl && !dr) return 15;
-            if (!ur) return 11;
-            if (!ul) return 12;
-            if (!dr) return 4;
-            if (!dl) return 5;
-            return 8;
+        // Top Surface (!u && d && l && r)
+        if (!u && d && l && r) {
+            if (!dl && !dr) return 33;
+            if (!dr) return 30;
+            if (!dl) return 31;
+            return 1;
         }
 
+        // Bottom Ceiling Surface (u && !d && l && r)
+        if (u && !d && l && r) {
+            if (!ul && !ur) return 47;
+            if (!ur) return 37;
+            if (!ul) return 38;
+            return 15;
+        }
+
+        // Left Wall Surface (u && d && !l && r)
+        if (u && d && !l && r) {
+            if (!ur && !dr) return 39;
+            if (!dr) return 28;
+            if (!ur) return 35;
+            return 7;
+        }
+
+        // Right Wall Surface (u && d && l && !r)
+        if (u && d && l && !r) {
+            if (!ul && !dl) return 41;
+            if (!dl) return 29;
+            if (!ul) return 36;
+            return 9;
+        }
+
+        // All 4 cardinal neighbors are solid (u && d && l && r) -> 16 combinations of (ul, ur, dl, dr)
+        if (!ul && !ur && !dl && !dr) return 40;
+
+        // 3 diagonal air cells
+        if (!ul && ur && !dl && !dr) return 18;
+        if (ul && !ur && !dl && !dr) return 19;
+        if (!ul && !ur && !dl && dr) return 25;
+        if (!ul && !ur && dl && !dr) return 26;
+
+        // 2 diagonal air cells
+        if (!ul && !ur) return 6;
+        if (!dl && !dr) return 27;
+        if (!ul && !dl) return 13;
+        if (!ur && !dr) return 20;
+        if (!ur && !dl) return 44;
+        if (!ul && !dr) return 45;
+
+        // 1 diagonal air cell
+        if (!dr) return 4;
+        if (!dl) return 5;
+        if (!ur) return 11;
+        if (!ul) return 12;
+
+        // 0 diagonal air cells (solid interior center)
         return 8;
+    }
+
+    /**
+     * Re-evaluates and updates the 8-neighbor auto-tile IDs for all Layer 3 solid tiles within the specified bounding box (clamped to level bounds).
+     *
+     * @param level The level being edited.
+     * @param minX  Minimum X coordinate of the dirty region.
+     * @param minY  Minimum Y coordinate of the dirty region.
+     * @param maxX  Maximum X coordinate of the dirty region.
+     * @param maxY  Maximum Y coordinate of the dirty region.
+     */
+    public void updateRegionAutoTiles(Level level, int minX, int minY, int maxX, int maxY) {
+        int w = level.getWidth();
+        int h = level.getHeight();
+        boolean[][] solid = new boolean[w][h];
+        Tile[][] solidTileMap = new Tile[w][h];
+
+        for (Node node : level.getChildren()) {
+            if (node instanceof Tile t && t.getTileType() == TileType.SOLID && t.getLayer() == 3) {
+                if (t.getX() >= 0 && t.getX() < w && t.getY() >= 0 && t.getY() < h) {
+                    solid[t.getX()][t.getY()] = true;
+                    solidTileMap[t.getX()][t.getY()] = t;
+                }
+            }
+        }
+
+        int startX = Math.max(0, minX);
+        int endX = Math.min(w - 1, maxX);
+        int startY = Math.max(0, minY);
+        int endY = Math.min(h - 1, maxY);
+
+        for (int x = startX; x <= endX; x++) {
+            for (int y = startY; y <= endY; y++) {
+                Tile existing = solidTileMap[x][y];
+                if (existing != null) {
+                    int newId = pickExactTileId(solid, x, y, w, h);
+                    existing.setRed(newId);
+                }
+            }
+        }
     }
 
     private boolean isSolid(boolean[][] solid, int x, int y, int w, int h) {

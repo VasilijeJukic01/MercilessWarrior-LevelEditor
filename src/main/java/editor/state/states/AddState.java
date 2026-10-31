@@ -1,8 +1,9 @@
 package editor.state.states;
 
 import editor.command.Command;
-import editor.command.commands.AddNodeCommand;
+import editor.command.commands.BatchLevelCommand;
 import editor.core.Framework;
+import editor.generator.AutoTileRuleEngine;
 import editor.gui.view.tab.TabView;
 import editor.model.repository.Node;
 import editor.model.repository.components.Level;
@@ -11,25 +12,65 @@ import editor.model.repository.components.TileType;
 import editor.settings.SettingsKey;
 import editor.state.State;
 
+import java.util.ArrayList;
 import java.util.List;
 
-import static editor.constants.Constants.*;
+import static editor.constants.Constants.TILE_SIZE;
 
+/**
+ * State responsible for placing tiles on the canvas.
+ * Groups continuous drag strokes into a single undoable command and supports real-time Smart Brush auto-tiling.
+ */
 public class AddState implements State<TabView> {
 
+    private final AutoTileRuleEngine autoTiler = new AutoTileRuleEngine();
+    private List<Node> strokeStartChildren;
+    private boolean strokeModified = false;
+
+    @Override
+    public void clickPerform(int x, int y, TabView tabView) {
+        this.strokeStartChildren = new ArrayList<>(tabView.getLevel().getChildren());
+        this.strokeModified = false;
+        placeTile(x, y, tabView);
+    }
+
+    @Override
+    public void dragPerform(int x, int y, TabView tabView) {
+        placeTile(x, y, tabView);
+    }
+
+    @Override
+    public void releasePerform(int x, int y, TabView tabView) {
+        if (strokeModified && strokeStartChildren != null) {
+            Level level = tabView.getLevel();
+            Command cmd = new BatchLevelCommand(
+                    level,
+                    strokeStartChildren,
+                    new ArrayList<>(level.getChildren()),
+                    level.getWidth(),
+                    level.getHeight()
+            );
+            Framework.getInstance().getGui().getCommandManager().addCommand(cmd);
+        }
+        strokeStartChildren = null;
+        strokeModified = false;
+    }
+
     private void placeTile(int x, int y, TabView tabView) {
+        Level level = tabView.getLevel();
+        int tileX = x / TILE_SIZE;
+        int tileY = y / TILE_SIZE;
+        if (tileX < 0 || tileX >= level.getWidth() || tileY < 0 || tileY >= level.getHeight()) return;
+
         String set = (String) tabView.getSettings().getParameter(SettingsKey.SELECTED_SET);
         int index = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_TILE);
         int layer = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_LAYER);
+        boolean smartBrush = Boolean.TRUE.equals(tabView.getSettings().getParameter(SettingsKey.SMART_BRUSH));
 
         List<Tile> tiles = getTileSet(set, tabView);
-        Tile newTile;
         if (tiles == null) return;
 
-        int tileX = x / TILE_SIZE;
-        int tileY = y / TILE_SIZE;
-
-
+        Tile newTile;
         if (set.equals("Solid Tiles")) newTile = getSolidTile(tabView, tiles, index, layer, tileX, tileY);
         else if (set.equals("Objects")) newTile = getObjectTile(tabView, tiles, index, tileX, tileY);
         else if (set.equals("Enemies")) newTile = getEnemyTile(tabView, tiles, index, tileX, tileY);
@@ -38,12 +79,15 @@ public class AddState implements State<TabView> {
         else if (set.equals("NPCs")) newTile = getNpcTile(tabView, tiles, index, tileX, tileY);
         else newTile = getDecoTile(tabView, tiles, index, layer, tileX, tileY);
 
-        if (newTile != null) addTile(newTile, layer, tabView);
-    }
-
-    @Override
-    public void clickPerform(int x, int y, TabView tabView) {
-        placeTile(x, y, tabView);
+        if (newTile != null) {
+            newTile.setLayer(layer);
+            level.getChildren().add(newTile);
+            if (smartBrush && newTile.getTileType() == TileType.SOLID && layer == 3) {
+                autoTiler.updateRegionAutoTiles(level, tileX - 1, tileY - 1, tileX + 1, tileY + 1);
+            }
+            strokeModified = true;
+            level.notify(level);
+        }
     }
 
     private List<Tile> getTileSet(String name, TabView tab) {
@@ -62,7 +106,7 @@ public class AddState implements State<TabView> {
             return Framework.getInstance().getStorage().getTileMap().get("Triggers");
         else if ("NPCs".equals(name))
             return Framework.getInstance().getStorage().getTileMap().get("NPCs");
-       return null;
+        return null;
     }
 
     private boolean isFree(int tileX, int tileY, Level level, List<TileType> types) {
@@ -144,21 +188,4 @@ public class AddState implements State<TabView> {
         }
         return null;
     }
-
-    private void addTile(Tile newTile, int layer, TabView tabView) {
-        newTile.setLayer(layer);
-        Command command = new AddNodeCommand(tabView.getLevel(), newTile);
-        Framework.getInstance().getGui().getCommandManager().addCommand(command);
-    }
-
-    @Override
-    public void dragPerform(int x, int y, TabView tabView) {
-        placeTile(x, y, tabView);
-    }
-
-    @Override
-    public void releasePerform(int x, int y, TabView tabView) {
-
-    }
-
 }
