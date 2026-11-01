@@ -1,10 +1,17 @@
 package editor.gui.view.tab;
 
+import editor.core.Framework;
 import editor.gui.controller.tabController.TabKeyListener;
 import editor.gui.controller.tabController.TabMouseListener;
 import editor.gui.controller.tabController.TabWheelListener;
 import editor.gui.view.renderer.LevelRenderer;
 import editor.gui.view.renderer.Renderer;
+import editor.model.loader.LvlEnemyType;
+import editor.model.loader.LvlNpcType;
+import editor.model.loader.LvlObjType;
+import editor.model.loader.LvlTriggerType;
+import editor.model.metadata.DecoMetadata;
+import editor.model.repository.Node;
 import editor.model.repository.components.Level;
 import editor.model.repository.components.Tile;
 import editor.model.repository.nodeObserver.NodeSubscriber;
@@ -20,9 +27,13 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
+import java.util.List;
 
 import static editor.constants.Constants.*;
 
+/**
+ * Represents a single level editing tab containing the workspace canvas, layer side panel, bottom tile picker, and coordinate/tile-inspector status bar.
+ */
 public class TabView extends JPanel implements AdjustmentListener, NodeSubscriber {
 
     private Level level;
@@ -30,10 +41,12 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
 
     private double scale = 1.0;
     private double dx = 0.0, dy = 0.0;
+    private Point hoverTile = null;
 
     private JPanel mainPanel, workspacePanel;
     private BottomPanel bottomPanel;
     private JScrollBar hScrollBar, vScrollBar;
+    private JLabel lbStatusBar;
 
     private final Renderer renderer;
     private TabKeyListener tabKeyListener;
@@ -49,10 +62,10 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         initEastPanel();
         this.renderer = new LevelRenderer(this);
         initSouthPanel();
+        initStatusBar();
         refreshBars();
     }
 
-    // Init
     private void initSettings() {
         this.settings.addParameter(SettingsKey.GRID, true);
         this.settings.addParameter(SettingsKey.GRID_COLOR, Color.BLUE);
@@ -111,9 +124,9 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         scrollPane.getVerticalScrollBar().setBlockIncrement(64);
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, mainPanel, scrollPane);
-        splitPane.setResizeWeight(0.4);
-        splitPane.setDividerLocation(0.4);
-        this.add(splitPane);
+        splitPane.setResizeWeight(0.65);
+        splitPane.setDividerLocation(0.65);
+        this.add(splitPane, BorderLayout.CENTER);
     }
 
     private void initEastPanel() {
@@ -124,7 +137,95 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         mainPanel.add(eastPanel, BorderLayout.EAST);
     }
 
-    // Value changes
+    private void initStatusBar() {
+        JPanel statusPanel = new JPanel(new BorderLayout());
+        statusPanel.setBackground(TOOLBAR_COLOR);
+        statusPanel.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+
+        this.lbStatusBar = new JLabel();
+        this.lbStatusBar.setForeground(Color.WHITE);
+        this.lbStatusBar.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        statusPanel.add(lbStatusBar, BorderLayout.WEST);
+
+        this.add(statusPanel, BorderLayout.SOUTH);
+        updateStatusBarText();
+    }
+
+    /**
+     * Updates the hovered grid cell coordinate, refreshes the status bar inspector, and repaints the ghost preview.
+     */
+    public void updateHoverTile(int tileX, int tileY) {
+        if (hoverTile == null || hoverTile.x != tileX || hoverTile.y != tileY) {
+            this.hoverTile = new Point(tileX, tileY);
+            updateStatusBarText();
+            workspacePanel.repaint();
+        }
+    }
+
+    /**
+     * Clears the hovered grid coordinate when the cursor exits the workspace canvas.
+     */
+    public void clearHoverTile() {
+        if (hoverTile != null) {
+            this.hoverTile = null;
+            updateStatusBarText();
+            workspacePanel.repaint();
+        }
+    }
+
+    private void updateStatusBarText() {
+        if (lbStatusBar == null || level == null) return;
+
+        int zoomPct = (int) Math.round(scale * 100);
+        String coordStr = (hoverTile != null) ? String.format("Grid: (%d, %d)", hoverTile.x, hoverTile.y) : "Grid: (-, -)";
+        String sizeStr = String.format("Level Size: %dx%d", level.getWidth(), level.getHeight());
+        String zoomStr = String.format("Zoom: %d%%", zoomPct);
+        String inspectStr = buildTileInspectorString();
+
+        lbStatusBar.setText(String.format("%s   |   %s   |   %s   |   %s", coordStr, sizeStr, zoomStr, inspectStr));
+    }
+
+    private String buildTileInspectorString() {
+        if (hoverTile == null || hoverTile.x < 0 || hoverTile.x >= level.getWidth() || hoverTile.y < 0 || hoverTile.y >= level.getHeight()) {
+            return "Hover: Out of bounds";
+        }
+
+        String tileset = (String) settings.getParameter(SettingsKey.TILE_SET);
+        List<DecoMetadata> decoMeta = Framework.getInstance().getStorage().getDecoMetadataMap().get(tileset);
+        List<String> items = new ArrayList<>();
+
+        for (Node n : level.getChildren()) {
+            if (n instanceof Tile t && t.getX() == hoverTile.x && t.getY() == hoverTile.y) {
+                switch (t.getTileType()) {
+                    case SOLID -> items.add("SOLID[ID:" + t.getRed() + ", L" + t.getLayer() + "]");
+                    case DECO -> {
+                        String decoName = (decoMeta != null && t.getBlue() >= 0 && t.getBlue() < decoMeta.size()) ? decoMeta.get(t.getBlue()).getId() : ("ID:" + t.getBlue());
+                        items.add("DECO[" + decoName + ", L" + t.getLayer() + "]");
+                    }
+                    case OBJECT -> {
+                        String objName = (t.getBlue() >= 0 && t.getBlue() < LvlObjType.MAX.ordinal()) ? LvlObjType.values()[t.getBlue()].name() : ("ID:" + t.getBlue());
+                        items.add("OBJ[" + objName + "]");
+                    }
+                    case ENEMY -> {
+                        String enemyName = (t.getGreen() >= 0 && t.getGreen() < LvlEnemyType.MAX.ordinal()) ? LvlEnemyType.values()[t.getGreen()].name() : ("ID:" + t.getGreen());
+                        items.add("ENEMY[" + enemyName + "]");
+                    }
+                    case TRIGGER -> {
+                        String trigName = (t.getBlue() >= 0 && t.getBlue() < LvlTriggerType.MAX.ordinal()) ? LvlTriggerType.values()[t.getBlue()].getLabel() : ("ID:" + t.getBlue());
+                        items.add("TRIGGER[" + trigName + "]");
+                    }
+                    case NPC -> {
+                        String npcName = (t.getBlue() >= 0 && t.getBlue() < LvlNpcType.MAX.ordinal()) ? LvlNpcType.values()[t.getBlue()].getLabel() : ("ID:" + t.getBlue());
+                        items.add("NPC[" + npcName + "]");
+                    }
+                    case PLAYER -> items.add("PLAYER");
+                }
+            }
+        }
+
+        return items.isEmpty() ? "Inspect: [Empty]" : "Inspect: " + String.join("  •  ", items);
+    }
+
     @Override
     public void adjustmentValueChanged(AdjustmentEvent e) {
         JScrollBar jScrollBar = (JScrollBar) e.getSource();
@@ -136,6 +237,7 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
     private void refreshBars() {
         this.vScrollBar.setMaximum((int) ((level.getHeight() * TILE_SIZE) * scale));
         this.hScrollBar.setMaximum((int) ((level.getWidth() * TILE_SIZE) * scale));
+        updateStatusBarText();
         this.repaint();
     }
 
@@ -155,6 +257,14 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
 
     public JPanel getWorkspacePanel() {
         return workspacePanel;
+    }
+
+    public BottomPanel getBottomPanel() {
+        return bottomPanel;
+    }
+
+    public Point getHoverTile() {
+        return hoverTile;
     }
 
     public double getScale() {
@@ -187,6 +297,7 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         this.scale = scale;
         this.vScrollBar.setMaximum((int) (level.getHeight() * TILE_SIZE * scale));
         this.hScrollBar.setMaximum((int) (level.getWidth() * TILE_SIZE * scale));
+        updateStatusBarText();
         this.repaint();
     }
 
@@ -196,10 +307,6 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
 
     public TabKeyListener getTabKeyListener() {
         return tabKeyListener;
-    }
-
-    public BottomPanel getBottomPanel() {
-        return bottomPanel;
     }
 
     // Observer

@@ -7,6 +7,7 @@ import editor.model.repository.components.Tile;
 import editor.settings.SettingsKey;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.MouseAdapter;
@@ -14,11 +15,10 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.Objects;
 
-import static editor.constants.Constants.EDITOR_PICKER_COL;
-import static editor.constants.Constants.TILE_SIZE;
+import static editor.constants.Constants.*;
 
 /**
- * Panel displaying selectable tile palettes, layer selectors, tileset selectors, the Smart Auto-Tile Brush toggle, and Eyedropper selection sync.
+ * Palette panel displaying selectable tiles, objects, decorations, enemies, and triggers, along with tileset, category, and layer filter controls.
  */
 public class BottomPanel extends JPanel {
 
@@ -28,12 +28,11 @@ public class BottomPanel extends JPanel {
     private final BufferedImage[] player;
 
     private JPanel panel;
-    private int selectedIndex = -1;
+    private int selectedIndex = 0;
     private int lastSelectedIndex = -1;
 
     private JComboBox<Integer> cbLayers;
     private JComboBox<String> cbTypes, cbTileset;
-    private JCheckBox chkSmartBrush;
 
     public BottomPanel(TabView tabView) {
         this.tabView = tabView;
@@ -54,39 +53,46 @@ public class BottomPanel extends JPanel {
 
     private void init() {
         this.setLayout(new BorderLayout());
+        this.setBackground(VIEW_COLOR);
+
         panel = new JPanel(new GridBagLayout());
+        panel.setBackground(VIEW_COLOR);
+        panel.setBorder(new EmptyBorder(10, 12, 10, 12));
+
         initTopPanel();
-
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.fill = GridBagConstraints.BOTH;
-        constraints.weightx = 1.0;
-        constraints.weighty = 1.0;
-        constraints.insets = new Insets(10, 0, 10, 0);
-
-        for (int itemIndex = 0; itemIndex < 48; itemIndex++) {
-            if (fillGridLayout(constraints, itemIndex, tiles)) break;
-        }
+        displaySelectedImages(tiles);
 
         this.add(panel, BorderLayout.CENTER);
     }
 
-    private boolean fillGridLayout(GridBagConstraints constraints, int itemIndex, BufferedImage[] tiles) {
+    private boolean fillGridLayout(GridBagConstraints constraints, int itemIndex, BufferedImage[] images) {
         int row = itemIndex / EDITOR_PICKER_COL;
         int col = itemIndex % EDITOR_PICKER_COL;
 
         constraints.gridx = col;
         constraints.gridy = row;
 
-        if (tiles[itemIndex] != null) {
-            ImagePanel imagePanel = new ImagePanel(tiles[itemIndex], itemIndex);
+        if (images[itemIndex] != null) {
+            ImagePanel imagePanel = new ImagePanel(images[itemIndex], itemIndex);
             panel.add(imagePanel, constraints);
         }
         return false;
     }
 
     private void initTopPanel() {
-        JPanel topPanel = new JPanel();
-        JLabel lbSelect = new JLabel("Select:");
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 6));
+        topPanel.setBackground(TAB_TOOLBAR_COLOR);
+        topPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, TOOLBAR_COLOR));
+
+        JLabel lbSet = createStyledLabel("Tileset:");
+        cbTileset = new JComboBox<>(Framework.getInstance().getStorage().getTilesetNames());
+        cbTileset.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                getTileset((String) e.getItem());
+            }
+        });
+
+        JLabel lbSelect = createStyledLabel("Category:");
         String[] cbTypeNames = {"Solid Tiles", "Decorations", "Objects", "Enemies", "Player", "Triggers", "NPCs"};
         this.cbTypes = new JComboBox<>(cbTypeNames);
         cbTypes.addItemListener(e -> {
@@ -95,7 +101,7 @@ public class BottomPanel extends JPanel {
             }
         });
 
-        JLabel lbLayer = new JLabel("Layer:");
+        JLabel lbLayer = createStyledLabel("Target Layer:");
         cbLayers = new JComboBox<>(new Integer[]{3, 5});
         cbLayers.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
@@ -103,33 +109,24 @@ public class BottomPanel extends JPanel {
             }
         });
 
-        JLabel lbSet = new JLabel("Tileset:");
-        cbTileset = new JComboBox<>(Framework.getInstance().getStorage().getTilesetNames());
-        cbTileset.addItemListener(e -> {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                getTileset((String) e.getItem());
-            }
-        });
-
-        chkSmartBrush = new JCheckBox("Smart Auto-Tile Brush", true);
-        chkSmartBrush.setToolTipText("Automatically updates surrounding 8-neighbor edges and corners while painting or erasing Layer 3 terrain");
-        chkSmartBrush.addItemListener(e ->
-                tabView.getSettings().updateParameter(SettingsKey.SMART_BRUSH, chkSmartBrush.isSelected())
-        );
-
         topPanel.add(lbSet);
         topPanel.add(cbTileset);
         topPanel.add(lbSelect);
         topPanel.add(cbTypes);
         topPanel.add(lbLayer);
         topPanel.add(cbLayers);
-        topPanel.add(chkSmartBrush);
         this.add(topPanel, BorderLayout.NORTH);
     }
 
+    private JLabel createStyledLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(TOOLBAR_COLOR);
+        label.setFont(new Font("SansSerif", Font.BOLD, 12));
+        return label;
+    }
+
     /**
-     * Synchronizes the palette category, layer, and selected tile index with a tile picked
-     * from the canvas via the Eyedropper tool (Alt+Click or Middle-Click).
+     * Synchronizes the palette category, layer, and selected tile index with a tile picked from the canvas via the Eyedropper tool (Alt+Click or Middle-Click).
      *
      * @param picked The tile clicked on the canvas.
      */
@@ -258,12 +255,13 @@ public class BottomPanel extends JPanel {
 
     private void displaySelectedImages(BufferedImage[] selectedImages) {
         GridBagConstraints constraints = new GridBagConstraints();
-        constraints.fill = GridBagConstraints.BOTH;
+        constraints.fill = GridBagConstraints.NONE;
         constraints.weightx = 1.0;
         constraints.weighty = 1.0;
-        constraints.insets = new Insets(10, 0, 10, 0);
+        constraints.insets = new Insets(6, 6, 6, 6);
 
-        for (int itemIndex = 0; itemIndex < selectedImages.length; itemIndex++) {
+        int limit = (selectedImages == tiles) ? Math.min(49, selectedImages.length) : selectedImages.length;
+        for (int itemIndex = 0; itemIndex < limit; itemIndex++) {
             if (fillGridLayout(constraints, itemIndex, selectedImages)) break;
         }
     }
@@ -279,6 +277,7 @@ public class BottomPanel extends JPanel {
 
         private final BufferedImage image;
         private final int index;
+        private boolean hovered = false;
 
         public ImagePanel(BufferedImage image, int index) {
             this.image = image;
@@ -289,13 +288,16 @@ public class BottomPanel extends JPanel {
 
         private void setupPanel() {
             this.setLayout(new BorderLayout());
-            this.setPreferredSize(new Dimension(TILE_SIZE, TILE_SIZE));
+            this.setPreferredSize(new Dimension(TILE_SIZE + 8, TILE_SIZE + 8));
+            this.setBackground( new Color(200, 212, 222));
+            this.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            this.setToolTipText("ID: " + index);
         }
 
         private void setupMouseListener() {
             this.addMouseListener(new MouseAdapter() {
                 @Override
-                public void mouseClicked(MouseEvent e) {
+                public void mousePressed(MouseEvent e) {
                     lastSelectedIndex = selectedIndex;
                     selectedIndex = ImagePanel.this.index;
                     tabView.getSettings().updateParameter(SettingsKey.SELECTED_TILE, selectedIndex);
@@ -308,18 +310,42 @@ public class BottomPanel extends JPanel {
                         }
                     }
                 }
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hovered = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hovered = false;
+                    repaint();
+                }
             });
         }
 
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            g.drawImage(image, 0, 0, TILE_SIZE, TILE_SIZE, null);
+            Graphics2D g2d = (Graphics2D) g.create();
+            g2d.drawImage(image, 4, 4, TILE_SIZE, TILE_SIZE, null);
 
             if (selectedIndex == index) {
-                g.setColor(Color.RED);
-                g.drawRect(0, 0, TILE_SIZE - 1, TILE_SIZE - 1);
+                g2d.setColor(new Color(231, 76, 60));
+                g2d.setStroke(new BasicStroke(2.5f));
+                g2d.drawRect(1, 1, getWidth() - 3, getHeight() - 3);
             }
+            else if (hovered) {
+                g2d.setColor(BUTTON_COLOR);
+                g2d.setStroke(new BasicStroke(1.5f));
+                g2d.drawRect(1, 1, getWidth() - 3, getHeight() - 3);
+            }
+            else {
+                g2d.setColor(new Color(157, 178, 191));
+                g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+            }
+            g2d.dispose();
         }
 
     }

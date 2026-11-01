@@ -14,7 +14,8 @@ import java.util.function.BiConsumer;
 import static editor.constants.Constants.TILE_SIZE;
 
 /**
- * Handles canvas mouse interactions including tool clicks/drags, right-click panning,and Eyedropper tile picking via Middle-Click or Alt+Left-Click.
+ * Handles canvas mouse interactions including tool clicks/drags, right-click panning,
+ * Eyedropper tile picking, and live cursor hover tracking for ghost previews.
  */
 public class TabMouseListener implements MouseListener, MouseMotionListener {
 
@@ -61,6 +62,7 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
 
     @Override
     public void mouseDragged(MouseEvent e) {
+        performAction(e, (x, y) -> tabView.updateHoverTile(x / TILE_SIZE, y / TILE_SIZE));
         if (SwingUtilities.isLeftMouseButton(e) && !e.isAltDown()) {
             performAction(e, (x, y) -> EditorFrame.getInstance().getProjectView().dragPerform(x, y, tabView));
         }
@@ -73,6 +75,19 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
         }
     }
 
+    @Override
+    public void mouseMoved(MouseEvent e) {
+        performAction(e, (x, y) -> tabView.updateHoverTile(x / TILE_SIZE, y / TILE_SIZE));
+    }
+
+    @Override
+    public void mouseEntered(MouseEvent e) {}
+
+    @Override
+    public void mouseExited(MouseEvent e) {
+        tabView.clearHoverTile();
+    }
+
     private void eyedropTileAt(int worldX, int worldY) {
         int tileX = worldX / TILE_SIZE;
         int tileY = worldY / TILE_SIZE;
@@ -83,20 +98,5 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
                 return;
             }
         }
-    }
-
-    @Override
-    public void mouseMoved(MouseEvent e) {
-
-    }
-
-    @Override
-    public void mouseEntered(MouseEvent e) {
-
-    }
-
-    @Override
-    public void mouseExited(MouseEvent e) {
-
     }
 }
