@@ -78,13 +78,13 @@ public class EditorTree implements Tree<TreeItem, TreeView> {
 
         Composite<Node> explorer = (Composite<Node>) root.getNode();
         explorer.addChild(project);
+        project.setParent(explorer);
 
         for (Node level : project.getChildren()) {
             level.setParent(project);
             TreeItem treeItemLevel = new TreeItem(level);
             treeItemProject.add(treeItemLevel);
-            for (Node tile : ((Level)level).getChildren()) {
-                treeItemLevel.add(new TreeItem(tile));
+            for (Node tile : ((Level) level).getChildren()) {
                 tile.setParent(level);
             }
         }
