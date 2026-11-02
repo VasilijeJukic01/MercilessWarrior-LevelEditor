@@ -28,6 +28,7 @@ import java.awt.event.ComponentEvent;
 import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static editor.constants.Constants.*;
 
@@ -50,6 +51,9 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
 
     private final Renderer renderer;
     private TabKeyListener tabKeyListener;
+
+    private final List<ActiveAiZone> activeAiZones = new CopyOnWriteArrayList<>();
+    private Timer aiRepaintTimer;
 
     public TabView(Level level) {
         this.setLayout(new BorderLayout());
@@ -80,6 +84,7 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         this.settings.addParameter(SettingsKey.TILE_SET, "Forest");
         this.settings.addParameter(SettingsKey.EXPORT_TYPE, "Both");
         this.settings.addParameter(SettingsKey.SMART_BRUSH, true);
+        this.settings.addParameter(SettingsKey.SELECTED_REGION, null);
     }
 
     private void initBars() {
@@ -244,6 +249,33 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
     public void reload() {
         this.bottomPanel.reload(true);
         this.level.notify(this);
+    }
+
+    // AI
+    public void addActiveAiZone(ActiveAiZone zone) {
+        activeAiZones.add(zone);
+        if (aiRepaintTimer == null) {
+            aiRepaintTimer = new Timer(100, e -> workspacePanel.repaint());
+        }
+        if (!aiRepaintTimer.isRunning()) aiRepaintTimer.start();
+        workspacePanel.repaint();
+    }
+
+    public void removeActiveAiZone(ActiveAiZone zone) {
+        activeAiZones.remove(zone);
+        if (activeAiZones.isEmpty() && aiRepaintTimer != null) aiRepaintTimer.stop();
+        workspacePanel.repaint();
+    }
+
+    public List<ActiveAiZone> getActiveAiZones() {
+        return activeAiZones;
+    }
+
+    public boolean isTileLockedByAi(int tileX, int tileY) {
+        for (ActiveAiZone zone : activeAiZones) {
+            if (zone.region().contains(tileX, tileY)) return true;
+        }
+        return false;
     }
 
     // Getters & Setters

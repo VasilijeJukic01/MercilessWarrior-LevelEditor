@@ -60,6 +60,7 @@ public class AddState implements State<TabView> {
         Level level = tabView.getLevel();
         int tileX = x / TILE_SIZE;
         int tileY = y / TILE_SIZE;
+        if (tabView.isTileLockedByAi(tileX, tileY)) return;
         if (tileX < 0 || tileX >= level.getWidth() || tileY < 0 || tileY >= level.getHeight()) return;
 
         String set = (String) tabView.getSettings().getParameter(SettingsKey.SELECTED_SET);

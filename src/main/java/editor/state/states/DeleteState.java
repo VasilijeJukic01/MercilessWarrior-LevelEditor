@@ -59,6 +59,7 @@ public class DeleteState implements State<TabView> {
     private void deleteTile(int x, int y, TabView tabView) {
         int tileX = x / TILE_SIZE;
         int tileY = y / TILE_SIZE;
+        if (tabView.isTileLockedByAi(tileX, tileY)) return;
         Level level = tabView.getLevel();
         boolean smartBrush = Boolean.TRUE.equals(tabView.getSettings().getParameter(SettingsKey.SMART_BRUSH));
 

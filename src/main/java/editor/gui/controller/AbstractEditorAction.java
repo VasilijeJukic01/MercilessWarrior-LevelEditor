@@ -32,6 +32,7 @@ public abstract class AbstractEditorAction extends AbstractAction {
         TabView tab = EditorFrame.getInstance().getCurrentTab();
         if (tab == null) return;
 
+        tab.getSettings().updateParameter(SettingsKey.SELECTED_REGION, null);
         List<Tile> selection = (List<Tile>) tab.getSettings().getParameter(SettingsKey.EDIT_SELECTION);
         if (selection != null && !selection.isEmpty()) {
             selection.clear();

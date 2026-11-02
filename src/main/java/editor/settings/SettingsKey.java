@@ -10,6 +10,7 @@ public enum SettingsKey {
     SELECTED_LAYER,
     SELECTED_TILE,
     EDIT_SELECTION,
+    SELECTED_REGION,
     BACKGROUND,
     TILE_SET,
     EXPORT_TYPE,

@@ -6,10 +6,11 @@ import editor.model.repository.components.Tile;
 import editor.model.repository.components.TileType;
 
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.util.*;
 
 /**
- * Resolves 8-neighbor bitmask auto-tiling for playable layer 3 terrain and generates procedural layer 5 subterranean caverns, stepped hills and bridges inside deep earth regions.
+ * Resolves 8-neighbor bitmask auto-tiling for playable terrain and generates procedural subterranean caverns and connected staircase/hill landscapes inside deep earth.
  */
 public class AutoTileRuleEngine {
 
@@ -154,15 +155,18 @@ public class AutoTileRuleEngine {
                         addDeco(parent, outNodes, x + 2, y + 1, 4, 37);
                     }
 
-                    if (x - lastBigBoulderX >= 5 && hasConsecutiveGrassyTop(placedL5, x, y + 1, 4, w) && placedL5[x][y - 1] == -1 && rand.nextDouble() < 0.42) {
+                    if (x - lastBigBoulderX >= 5 && hasConsecutiveGrassyTop(placedL5, x, y + 1, 4, w) && placedL5[x][y - 1] == -1 && rand.nextDouble() < 0.45) {
                         int bigId = rand.nextBoolean() ? rand.nextInt(3) : (48 + rand.nextInt(3));
                         addDeco(parent, outNodes, x, y - 1, 4, bigId);
+                        if (rand.nextBoolean()) {
+                            addDeco(parent, outNodes, x + 2, y, 4, 30);
+                        }
                         lastBigBoulderX = x;
                     }
-                    else if (hasConsecutiveGrassyTop(placedL5, x, y + 1, 2, w) && rand.nextDouble() < 0.22) {
+                    else if (hasConsecutiveGrassyTop(placedL5, x, y + 1, 2, w) && rand.nextDouble() < 0.28) {
                         addDeco(parent, outNodes, x, y, 4, rand.nextBoolean() ? 30 : 33);
                     }
-                    else if (rand.nextDouble() < 0.58) {
+                    else if (rand.nextDouble() < 0.60) {
                         int decoId;
                         double r = rand.nextDouble();
                         if (y > h / 2 && r < 0.25) decoId = INNER_SHROOMS[rand.nextInt(INNER_SHROOMS.length)];
@@ -181,8 +185,81 @@ public class AutoTileRuleEngine {
     }
 
     /**
-     * Converts a subset of carved caverns into open stepped hills or floating bridges while preserving the majority as enclosed multi-tiered caverns.
+     * Builds the subterranean staircase landscape inside a given rectangular region:
+     * [Open Hill] -> [24:5 Nodule Step] -> [Lower Basin] -> [Stepped Boulder Plateau] -> [Rising 24:5 Nodule Steps]
      */
+    public void buildSubterraneanStaircaseInRegion(int[][] placedL5, Rectangle box, int w, int h) {
+        int x1 = Math.max(1, box.x + 1);
+        int x2 = Math.min(w - 2, box.x + box.width - 2);
+        int availW = x2 - x1 + 1;
+        if (availW < 3) return;
+
+        // Leave at least 2 rows above topY so 2-tile-tall boulders (anchored at topY - 2) fit on top of the hill!
+        int topY = Math.min(h - 3, Math.max(2, box.y + Math.max(2, box.height / 2)));
+        int botY = Math.min(h - 2, box.y + box.height - 1);
+
+        // Compact region (availW < 8) -> Build an open hill (0:5, 1:5... 2:5 + 7:5/9:5 legs)
+        if (availW < 8 || topY + 1 >= botY) {
+            for (int x = x1; x <= x2; x++) {
+                placedL5[x][topY] = (x == x1) ? 0 : (x == x2) ? 2 : 1;
+            }
+            for (int y = topY + 1; y <= botY; y++) {
+                placedL5[x1][y] = 7;
+                placedL5[x2][y] = 9;
+            }
+            return;
+        }
+
+        // Medium region (availW 8..12) -> Build a connected stepped hill!
+        // Lower left tier at (topY + 1) connects at splitX via inner corner 12:5 directly to upper right tier at (topY)!
+        if (availW < 13) {
+            int splitX = x1 + Math.max(2, availW / 3);
+            int lowY = topY + 1;
+
+            for (int x = x1; x <= splitX; x++) {
+                placedL5[x][lowY] = (x == x1) ? 0 : (x == splitX) ? 12 : 1;
+            }
+            for (int y = lowY + 1; y <= botY; y++) {
+                placedL5[x1][y] = 7;
+            }
+
+            for (int x = splitX; x <= x2; x++) {
+                placedL5[x][topY] = (x == splitX) ? 0 : (x == x2) ? 2 : 1;
+            }
+            for (int y = topY + 1; y <= botY; y++) {
+                placedL5[x2][y] = 9;
+            }
+            return;
+        }
+
+        // Wide region (availW >= 13) -> Two-Tier stepped hill + rising 24:5 nodules
+        int hillEndX = x2 - 4;
+        int splitX = x1 + Math.max(2, (hillEndX - x1) / 3);
+        int lowY = topY + 1;
+
+        for (int x = x1; x <= splitX; x++) {
+            placedL5[x][lowY] = (x == x1) ? 0 : (x == splitX) ? 12 : 1;
+        }
+        for (int y = lowY + 1; y <= botY; y++) {
+            placedL5[x1][y] = 7;
+        }
+
+        for (int x = splitX; x <= hillEndX; x++) {
+            placedL5[x][topY] = (x == splitX) ? 0 : (x == hillEndX) ? 2 : 1;
+        }
+        for (int y = topY + 1; y <= botY; y++) {
+            placedL5[hillEndX][y] = 9;
+        }
+
+        // Two rising 24:5 stepping nodules to the right of the hill
+        if (hillEndX + 2 <= x2 && topY >= 2) {
+            placedL5[hillEndX + 2][topY] = 24;
+        }
+        if (hillEndX + 4 <= x2 && topY - 1 >= 2) {
+            placedL5[hillEndX + 4][topY - 1] = 24;
+        }
+    }
+
     private void diversifyPocketTypes(boolean[][] layer5Solid, int[][] placedL5, boolean[][] deepEarth, int w, int h) {
         boolean[][] visited = new boolean[w][h];
 
@@ -217,7 +294,8 @@ public class AutoTileRuleEngine {
                     int ph = maxY - minY + 1;
                     double roll = rand.nextDouble();
 
-                    if (roll < 0.60) {
+                    // Keep as organic Multi-Tiered cavern
+                    if (roll < 0.45) {
                         if (pw >= 6 && ph >= 5 && rand.nextBoolean()) {
                             int by = minY + ph / 2;
                             int bw = 1 + rand.nextInt(3);
@@ -230,13 +308,21 @@ public class AutoTileRuleEngine {
                             }
                         }
                     }
+                    // Convert into a subterranean staircase / hill / nodule landscape!
                     else if (roll < 0.85) {
-                        clearPocketBorderAndConvertToOpenHill(placedL5, deepEarth, airCells, w, h);
+                        if (pw >= 6 && ph >= 3) {
+                            clearPocketBorder(placedL5, airCells, w, h);
+                            buildSubterraneanStaircaseInRegion(placedL5, new Rectangle(minX, minY, pw, ph), w, h);
+                        }
+                        else {
+                            clearPocketBorderAndConvertToOpenHill(placedL5, deepEarth, airCells, w, h);
+                        }
                     }
+                    // Floating mossy bridge (21-22-23) or nodule staircase (24)
                     else {
                         clearPocketBorder(placedL5, airCells, w, h);
                         int by = (minY + maxY) / 2;
-                        int bw = Math.min(pw, 1 + rand.nextInt(4));
+                        int bw = Math.min(pw, 1 + rand.nextInt(3));
                         int bx = minX + (pw - bw) / 2;
                         if (bw == 1) placedL5[bx][by] = 24;
                         else {
@@ -264,8 +350,7 @@ public class AutoTileRuleEngine {
     }
 
     /**
-     * Removes the upper cavern ceiling/walls of a pocket while preserving its organic floor
-     * contour and capping the ends with outer hill corners (0 and 2) and vertical legs (7 and 9).
+     * Removes the upper cavern ceiling/walls of a pocket while preserving its organic floor contour and capping the ends with outer hill corners and vertical legs.
      */
     private void clearPocketBorderAndConvertToOpenHill(int[][] placedL5, boolean[][] deepEarth, List<Point> airCells, int w, int h) {
         Map<Integer, Integer> colToFloorY = new TreeMap<>();
@@ -487,10 +572,10 @@ public class AutoTileRuleEngine {
         Tile[][] solidTileMap = new Tile[w][h];
 
         for (Node node : level.getChildren()) {
-            if (node instanceof Tile t && t.getTileType() == TileType.SOLID && t.getLayer() == 3) {
+            if (node instanceof Tile t && t.getTileType() == TileType.SOLID) {
                 if (t.getX() >= 0 && t.getX() < w && t.getY() >= 0 && t.getY() < h) {
                     solid[t.getX()][t.getY()] = true;
-                    solidTileMap[t.getX()][t.getY()] = t;
+                    if (t.getLayer() == 3) solidTileMap[t.getX()][t.getY()] = t;
                 }
             }
         }

@@ -3,6 +3,7 @@ package editor.gui.view.renderer;
 import editor.core.Clipboard;
 import editor.core.Framework;
 import editor.gui.view.renderer.renderers.*;
+import editor.gui.view.tab.ActiveAiZone;
 import editor.gui.view.tab.TabView;
 import editor.model.metadata.DecoMetadata;
 import editor.model.repository.Node;
@@ -70,7 +71,8 @@ public class LevelRenderer implements Renderer {
         renderSelection(g);
         renderGrid(g);
         renderGhostPreview(g);
-        ((SelectState) Framework.getInstance().getGui().getProjectView().getStateManager().getSelectState()).renderSelection(g);
+        ((SelectState) Framework.getInstance().getGui().getProjectView().getStateManager().getSelectState()).renderSelection(g, tabView);
+        renderActiveAiZones(g);
         Framework.getInstance().getGui().getProjectView().getStateManager().getRectFillState().renderPreview(g);
     }
 
@@ -203,6 +205,48 @@ public class LevelRenderer implements Renderer {
                 g.drawRect(x, y, TILE_SIZE, TILE_SIZE);
             }
         }
+    }
+
+    private void renderActiveAiZones(Graphics g) {
+        List<ActiveAiZone> zones = tabView.getActiveAiZones();
+        if (zones.isEmpty()) return;
+
+        Graphics2D g2d = (Graphics2D) g.create();
+        float dashPhase = (System.currentTimeMillis() % 1000) / 25.0f;
+        Stroke animatedDash = new BasicStroke(3.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[]{10.0f, 8.0f}, dashPhase);
+
+        for (ActiveAiZone zone : zones) {
+            Rectangle r = zone.region();
+            int px = r.x * TILE_SIZE;
+            int py = r.y * TILE_SIZE;
+            int pw = r.width * TILE_SIZE;
+            int ph = r.height * TILE_SIZE;
+
+            g2d.setColor(new Color(243, 156, 18, 45));
+            g2d.fillRect(px, py, pw, ph);
+
+            g2d.setStroke(animatedDash);
+            g2d.setColor(new Color(241, 196, 15));
+            g2d.drawRect(px, py, pw, ph);
+
+            double elapsed = (System.currentTimeMillis() - zone.startTimeMs()) / 1000.0;
+            String label = String.format("AI Building... (%.1fs)", elapsed);
+            g2d.setFont(new Font("SansSerif", Font.BOLD, 13));
+            FontMetrics fm = g2d.getFontMetrics();
+            int lw = fm.stringWidth(label) + 16;
+            int lh = 24;
+            int lx = px + (pw - lw) / 2;
+            int ly = py + (ph - lh) / 2;
+
+            g2d.setColor(new Color(39, 55, 77, 230));
+            g2d.fillRoundRect(lx, ly, lw, lh, 8, 8);
+            g2d.setColor(new Color(241, 196, 15));
+            g2d.setStroke(new BasicStroke(1.5f));
+            g2d.drawRoundRect(lx, ly, lw, lh, 8, 8);
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(label, lx + 8, ly + 17);
+        }
+        g2d.dispose();
     }
 
 }

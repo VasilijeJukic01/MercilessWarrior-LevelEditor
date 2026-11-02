@@ -2,23 +2,29 @@ package editor.gui.view.tab;
 
 import editor.generator.LevelGeneratorFacade;
 import editor.generator.strategy.RoomArchetype;
+import editor.model.repository.Node;
+import editor.model.repository.components.Level;
+import editor.settings.SettingsKey;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static editor.constants.Constants.TOOLBAR_COLOR;
 
 /**
- * Modal dialog providing controls for procedural room generation, AI prompt generation, auto-tiling, and auto-decoration.
+ * Dialog providing controls for procedural room generation, full-level AI generation, non-blocking Co-Op Regional AI inpainting, auto-tiling, and auto-decoration.
  */
 public class GenerateLevelDialog extends JDialog {
 
     private static final LevelGeneratorFacade generator = new LevelGeneratorFacade();
     private static String cachedApiKey = "";
-    private static String cachedPrompt = "A multi-tiered forest cavern with a central island, a jump pad on the left, and 3 knights guarding a save totem.";
+    private static String cachedPrompt = "A multi-tiered forest cavern with a central island, a jump pad on the left, and 3 knights.";
 
     private final TabView tabView;
+    private final Rectangle selectedRegion;
+
     private final JSpinner spWidth = new JSpinner(new SpinnerNumberModel(45, 26, 99, 1));
     private final JSpinner spHeight = new JSpinner(new SpinnerNumberModel(26, 14, 99, 1));
     private final JComboBox<RoomArchetype> cbArchetype = new JComboBox<>(RoomArchetype.values());
@@ -37,6 +43,7 @@ public class GenerateLevelDialog extends JDialog {
     public GenerateLevelDialog(Frame owner, TabView tabView) {
         super(owner, "Level Generator & Co-Pilot", true);
         this.tabView = tabView;
+        this.selectedRegion = (Rectangle) tabView.getSettings().getParameter(SettingsKey.SELECTED_REGION);
         spWidth.setValue(tabView.getLevel().getWidth());
         spHeight.setValue(tabView.getLevel().getHeight());
         pfApiKey.setText(cachedApiKey);
@@ -45,7 +52,7 @@ public class GenerateLevelDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(520, 460);
+        setSize(540, 510);
         setLocationRelativeTo(getOwner());
         setLayout(new BorderLayout(10, 10));
 
@@ -67,8 +74,11 @@ public class GenerateLevelDialog extends JDialog {
         gbc.gridwidth = 2;
         form.add(new JSeparator(), gbc);
 
+        String promptLabel = (selectedRegion != null)
+                ? String.format("AI Prompt (Active Selection: X=%d, Y=%d, Size=%dx%d):", selectedRegion.x, selectedRegion.y, selectedRegion.width, selectedRegion.height)
+                : "AI Prompt (Gemini) OR Paste Raw '#' and '.' ASCII Grid:";
         gbc.gridy = row++;
-        form.add(new JLabel("AI Prompt (Gemini) OR Paste Raw '#' and '.' ASCII Grid:"), gbc);
+        form.add(new JLabel(promptLabel), gbc);
 
         taAiPrompt.setLineWrap(true);
         taAiPrompt.setWrapStyleWord(true);
@@ -80,11 +90,26 @@ public class GenerateLevelDialog extends JDialog {
 
         add(form, BorderLayout.CENTER);
 
-        JPanel buttons = new JPanel(new GridLayout(2, 2, 8, 8));
-        buttons.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
+        JPanel southContainer = new JPanel(new BorderLayout(8, 8));
+        southContainer.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
 
+        JButton btnCoOpRegion = new JButton();
+        if (selectedRegion != null) {
+            btnCoOpRegion.setText(String.format("Co-Op AI: Remake Selected %dx%d Region in Background", selectedRegion.width, selectedRegion.height));
+            btnCoOpRegion.setBackground(new Color(211, 84, 0));
+            btnCoOpRegion.setForeground(Color.WHITE);
+            btnCoOpRegion.setFont(btnCoOpRegion.getFont().deriveFont(Font.BOLD, 13f));
+            btnCoOpRegion.addActionListener(e -> runCoOpRegionalAi());
+        }
+        else {
+            btnCoOpRegion.setText("Co-Op AI: Select a Region with 'Select' Tool First to Remake Part of Level");
+            btnCoOpRegion.setEnabled(false);
+        }
+        southContainer.add(btnCoOpRegion, BorderLayout.NORTH);
+
+        JPanel buttons = new JPanel(new GridLayout(2, 2, 8, 8));
         JButton btnProcedural = new JButton("1. Generate Procedural Room");
-        JButton btnAi = new JButton("2. Generate from AI / ASCII");
+        JButton btnAi = new JButton("2. Generate Full Level (AI)");
         JButton btnAutoTile = new JButton("3. Auto-Tile Current Terrain");
         JButton btnAutoDeco = new JButton("4. Auto-Decorate Current Level");
 
@@ -110,16 +135,65 @@ public class GenerateLevelDialog extends JDialog {
             dispose();
         });
 
-        btnAi.addActionListener(e -> runAiGeneration());
+        btnAi.addActionListener(e -> runFullLevelAiGeneration());
 
         buttons.add(btnProcedural);
         buttons.add(btnAi);
         buttons.add(btnAutoTile);
         buttons.add(btnAutoDeco);
-        add(buttons, BorderLayout.SOUTH);
+        southContainer.add(buttons, BorderLayout.CENTER);
+
+        add(southContainer, BorderLayout.SOUTH);
     }
 
-    private void runAiGeneration() {
+    /**
+     * Launches a non-blocking background AI worker for the selected region and immediately closes the dialog so the user can continue editing other parts of the level in real time.
+     */
+    private void runCoOpRegionalAi() {
+        if (selectedRegion == null) return;
+        String prompt = taAiPrompt.getText().trim();
+        String apiKey = new String(pfApiKey.getPassword()).trim();
+        cachedPrompt = prompt;
+        if (!apiKey.isEmpty()) cachedApiKey = apiKey;
+
+        if (apiKey.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter your Gemini API Key first!", "Missing API Key", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Level level = tabView.getLevel();
+        Rectangle targetRegion = new Rectangle(selectedRegion);
+        double decoDensity = slDecoDensity.getValue() / 100.0;
+
+        // Snapshot the terrain on the EDT and register the locked construction zone on the canvas
+        boolean[][] solidSnapshot = generator.snapshotSolidGrid(level);
+        ActiveAiZone zone = new ActiveAiZone(targetRegion, prompt, System.currentTimeMillis());
+        tabView.addActiveAiZone(zone);
+        tabView.getSettings().updateParameter(SettingsKey.SELECTED_REGION, null);
+        List<?> editSelection = (List<?>) tabView.getSettings().getParameter(SettingsKey.EDIT_SELECTION);
+        if (editSelection != null) editSelection.clear();
+
+        dispose();
+
+        // Compute regional blueprint off-thread, then patch on the EDT when ready
+        new Thread(() -> {
+            try {
+                List<Node> nodesSnapshot = generator.snapshotNodes(level);
+                List<Node> regionNodes = generator.generateRegionalAiNodesOffThread(level, targetRegion, solidSnapshot, nodesSnapshot, prompt, apiKey);
+                SwingUtilities.invokeLater(() -> {
+                    tabView.removeActiveAiZone(zone);
+                    generator.commitRegionalPatchOnEdt(level, targetRegion, regionNodes);
+                });
+            } catch (Throwable ex) {
+                SwingUtilities.invokeLater(() -> {
+                    tabView.removeActiveAiZone(zone);
+                    JOptionPane.showMessageDialog(tabView, "Co-Op AI Region failed:\n" + ex.getMessage(), "AI Error", JOptionPane.ERROR_MESSAGE);
+                });
+            }
+        }, "CoOp-AI-Region-Worker").start();
+    }
+
+    private void runFullLevelAiGeneration() {
         String prompt = taAiPrompt.getText().trim();
         String apiKey = new String(pfApiKey.getPassword()).trim();
         cachedPrompt = prompt;
