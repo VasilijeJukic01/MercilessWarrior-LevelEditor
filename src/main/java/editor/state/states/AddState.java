@@ -29,7 +29,7 @@ public class AddState implements State<TabView> {
 
     @Override
     public void clickPerform(int x, int y, TabView tabView) {
-        this.strokeStartChildren = new ArrayList<>(tabView.getLevel().getChildren());
+        this.strokeStartChildren = tabView.getLevel().snapshotChildren();
         this.strokeModified = false;
         placeTile(x, y, tabView);
     }

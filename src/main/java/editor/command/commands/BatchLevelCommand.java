@@ -3,6 +3,7 @@ package editor.command.commands;
 import editor.command.Command;
 import editor.model.repository.Node;
 import editor.model.repository.components.Level;
+import editor.model.repository.components.Tile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,19 +31,27 @@ public class BatchLevelCommand implements Command {
      */
     public BatchLevelCommand(Level level, List<Node> oldChildren, List<Node> newChildren, int newWidth, int newHeight) {
         this.level = level;
-        this.oldChildren = new ArrayList<>(oldChildren);
-        this.newChildren = new ArrayList<>(newChildren);
+        this.oldChildren = copyNodes(oldChildren);
+        this.newChildren = copyNodes(newChildren);
         this.oldWidth = level.getWidth();
         this.oldHeight = level.getHeight();
         this.newWidth = newWidth;
         this.newHeight = newHeight;
     }
 
+    private List<Node> copyNodes(List<Node> nodes) {
+        List<Node> copies = new ArrayList<>(nodes.size());
+        for (Node n : nodes) {
+            copies.add(n instanceof Tile t ? t.copy(level) : n);
+        }
+        return copies;
+    }
+
     @Override
     public void execute() {
         if (level == null) return;
         level.getChildren().clear();
-        level.getChildren().addAll(newChildren);
+        level.getChildren().addAll(copyNodes(newChildren));
         level.setSize(newWidth, newHeight);
         if (level.getParent() != null) level.getParent().setChanged(true);
         level.notify(level);
@@ -52,7 +61,7 @@ public class BatchLevelCommand implements Command {
     public void undo() {
         if (level == null) return;
         level.getChildren().clear();
-        level.getChildren().addAll(oldChildren);
+        level.getChildren().addAll(copyNodes(oldChildren));
         level.setSize(oldWidth, oldHeight);
         if (level.getParent() != null) level.getParent().setChanged(true);
         level.notify(level);

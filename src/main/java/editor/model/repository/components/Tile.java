@@ -26,6 +26,15 @@ public class Tile extends Node {
         this.blue = blue;
     }
 
+    public Tile copy(Node newParent) {
+        Tile clone = new Tile(getName(), newParent, this.tileType, this.x, this.y, this.red, this.green, this.blue);
+        clone.setLayer(this.layer);
+        clone.setRotation(this.rotation);
+        clone.setScaleX(this.scaleX);
+        clone.setScaleY(this.scaleY);
+        return clone;
+    }
+
     private void notifyParent() {
         if (getParent() != null && getParent() instanceof Level) {
             ((Level) getParent()).notify(this);

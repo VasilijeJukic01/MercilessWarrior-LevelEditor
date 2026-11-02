@@ -67,7 +67,7 @@ public class RectFillState implements State<TabView> {
             return;
         }
 
-        List<Node> oldChildren = new ArrayList<>(level.getChildren());
+        List<Node> oldChildren = level.snapshotChildren();
         int selectedTileId = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_TILE);
         int selectedLayer = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_LAYER);
         boolean smartBrush = Boolean.TRUE.equals(tabView.getSettings().getParameter(SettingsKey.SMART_BRUSH));

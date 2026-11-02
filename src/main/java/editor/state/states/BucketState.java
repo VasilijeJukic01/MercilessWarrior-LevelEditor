@@ -40,7 +40,7 @@ public class BucketState implements State<TabView> {
         int selectedLayer = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_LAYER);
         boolean smartBrush = Boolean.TRUE.equals(tabView.getSettings().getParameter(SettingsKey.SMART_BRUSH));
 
-        List<Node> oldChildren = new ArrayList<>(level.getChildren());
+        List<Node> oldChildren = level.snapshotChildren();
         Tile[][] grid = new Tile[w][h];
         for (Node n : level.getChildren()) {
             if (n instanceof Tile t && t.getTileType() == TileType.SOLID && t.getLayer() == selectedLayer) {
