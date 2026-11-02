@@ -23,7 +23,6 @@ public class ActionManager {
         actions.put(ActionType.SAVE_AS_FILE, new SaveAsAction());
         actions.put(ActionType.CLOSE_FILE, new CloseFileAction());
         actions.put(ActionType.RENAME_FILE, new RenameFileAction());
-        actions.put(ActionType.ADD_AUTHOR, new AddAuthorAction());
         actions.put(ActionType.HELP, new HelpAction());
     }
 
@@ -43,6 +42,12 @@ public class ActionManager {
         actions.put(ActionType.OPTIONS, new OptionsAction());
         actions.put(ActionType.BACKGROUND, new BackgroundAction());
         actions.put(ActionType.LOAD_TILESET, new LoadTilesetAction());
+        actions.put(ActionType.SELECT, new SelectAction());
+        actions.put(ActionType.COPY, new CopyAction());
+        actions.put(ActionType.PASTE, new PasteAction());
+        actions.put(ActionType.GENERATE_LEVEL, new GenerateLevelAction());
+        actions.put(ActionType.BUCKET_FILL, new BucketFillAction());
+        actions.put(ActionType.RECT_FILL, new RectFillAction());
     }
 
     public AbstractEditorAction getAction(ActionType type) {

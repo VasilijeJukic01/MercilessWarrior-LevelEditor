@@ -26,6 +26,17 @@ public class Level extends Composite<Node> implements NodePublisher {
         this.height = height;
     }
 
+    // Prototype
+    public List<Node> snapshotChildren() {
+        List<Node> snapshot = new ArrayList<>(getChildren().size());
+        for (Node child : getChildren()) {
+            if (child instanceof Tile tile) {
+                snapshot.add(tile.copy(this));
+            }
+        }
+        return snapshot;
+    }
+
     @Override
     public void setName(String text) {
         Optional.ofNullable(text)

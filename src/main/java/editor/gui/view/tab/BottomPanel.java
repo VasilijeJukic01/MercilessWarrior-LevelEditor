@@ -1,9 +1,13 @@
 package editor.gui.view.tab;
 
 import editor.core.Framework;
+import editor.gui.view.EditorFrame;
+import editor.logger.LogType;
+import editor.model.repository.components.Tile;
 import editor.settings.SettingsKey;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.MouseAdapter;
@@ -13,16 +17,18 @@ import java.util.Objects;
 
 import static editor.constants.Constants.*;
 
+/**
+ * Palette panel displaying selectable tiles, objects, decorations, enemies, and triggers, along with tileset, category, and layer filter controls.
+ */
 public class BottomPanel extends JPanel {
 
     private final TabView tabView;
 
-    private BufferedImage[] tiles, decorations, objects, enemies;
-
+    private BufferedImage[] tiles, decorations, objects, enemies, triggers, npcs;
     private final BufferedImage[] player;
 
     private JPanel panel;
-    private int selectedIndex = -1;
+    private int selectedIndex = 0;
     private int lastSelectedIndex = -1;
 
     private JComboBox<Integer> cbLayers;
@@ -37,77 +43,69 @@ public class BottomPanel extends JPanel {
 
     private void loadTileset() {
         String set = (String) tabView.getSettings().getParameter(SettingsKey.TILE_SET);
-        this.tiles = Framework.getInstance().getStorage().getImageMap().get(set+"Tiles");
-        this.decorations = Framework.getInstance().getStorage().getImageMap().get(set+"Deco");
+        this.tiles = Framework.getInstance().getStorage().getImageMap().get(set + "Tiles");
+        this.decorations = Framework.getInstance().getStorage().getImageMap().get(set + "Deco");
         this.objects = Framework.getInstance().getStorage().getImageMap().get("Objects");
         this.enemies = Framework.getInstance().getStorage().getImageMap().get("Enemies");
+        this.triggers = Framework.getInstance().getStorage().getImageMap().get("Triggers");
+        this.npcs = Framework.getInstance().getStorage().getImageMap().get("NPCs");
     }
 
     private void init() {
         this.setLayout(new BorderLayout());
+        this.setBackground(VIEW_COLOR);
 
-        panel = new JPanel();
-        BorderLayout borderLayout = new BorderLayout();
-        panel.setLayout(borderLayout);
+        panel = new JPanel(new GridBagLayout());
+        panel.setBackground(VIEW_COLOR);
+        panel.setBorder(new EmptyBorder(10, 12, 10, 12));
+
         initTopPanel();
-
-        GridBagLayout layout = new GridBagLayout();
-        panel.setLayout(layout);
-
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.fill = GridBagConstraints.BOTH;
-        constraints.weightx = 1.0;
-        constraints.weighty = 1.0;
-        constraints.insets = new Insets(10, 0, 10, 0);
-
-        for (int itemIndex = 0; itemIndex < 48; itemIndex++) {
-            if (fillGridLayout(constraints, itemIndex, tiles)) break;
-        }
+        displaySelectedImages(tiles);
 
         this.add(panel, BorderLayout.CENTER);
     }
 
-    private boolean fillGridLayout(GridBagConstraints constraints, int itemIndex, BufferedImage[] tiles) {
+    private boolean fillGridLayout(GridBagConstraints constraints, int itemIndex, BufferedImage[] images) {
         int row = itemIndex / EDITOR_PICKER_COL;
         int col = itemIndex % EDITOR_PICKER_COL;
 
-        if (row >= EDITOR_PICKER_ROW) return true;
-
         constraints.gridx = col;
         constraints.gridy = row;
-        ImagePanel imagePanel = new ImagePanel(tiles[itemIndex], itemIndex);
-        panel.add(imagePanel, constraints);
+
+        if (images[itemIndex] != null) {
+            ImagePanel imagePanel = new ImagePanel(images[itemIndex], itemIndex);
+            panel.add(imagePanel, constraints);
+        }
         return false;
     }
 
     private void initTopPanel() {
-        JPanel topPanel = new JPanel();
-        JLabel lbSelect = new JLabel("Select:");
-        String[] cbTypeNames = {"Solid Tiles", "Decorations", "Objects", "Enemies", "Player"};
-        this.cbTypes = new JComboBox<>(cbTypeNames);
-        cbTypes.addItemListener(e -> {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                String selectedItem = (String) e.getItem();
-                updateImagePanel(selectedItem);
-            }
-        });
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 6));
+        topPanel.setBackground(TAB_TOOLBAR_COLOR);
+        topPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, TOOLBAR_COLOR));
 
-        JLabel lbLayer = new JLabel("Layer:");
-        cbLayers = new JComboBox<>(new Integer[]{3, 5});
-        cbLayers.addItemListener(e -> {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                Integer selectedItem = (Integer) e.getItem();
-                saveLayer(selectedItem);
-            }
-        });
-
-
-        JLabel lbSet = new JLabel("Tileset:");
+        JLabel lbSet = createStyledLabel("Tileset:");
         cbTileset = new JComboBox<>(Framework.getInstance().getStorage().getTilesetNames());
         cbTileset.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED) {
-                String selectedItem = (String) e.getItem();
-                getTileset(selectedItem);
+                getTileset((String) e.getItem());
+            }
+        });
+
+        JLabel lbSelect = createStyledLabel("Category:");
+        String[] cbTypeNames = {"Solid Tiles", "Decorations", "Objects", "Enemies", "Player", "Triggers", "NPCs"};
+        this.cbTypes = new JComboBox<>(cbTypeNames);
+        cbTypes.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                updateImagePanel((String) e.getItem());
+            }
+        });
+
+        JLabel lbLayer = createStyledLabel("Target Layer:");
+        cbLayers = new JComboBox<>(new Integer[]{3, 5});
+        cbLayers.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED) {
+                saveLayer((Integer) e.getItem());
             }
         });
 
@@ -120,8 +118,75 @@ public class BottomPanel extends JPanel {
         this.add(topPanel, BorderLayout.NORTH);
     }
 
+    private JLabel createStyledLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(TOOLBAR_COLOR);
+        label.setFont(new Font("SansSerif", Font.BOLD, 12));
+        return label;
+    }
+
+    /**
+     * Synchronizes the palette category, layer, and selected tile index with a tile picked from the canvas via the Eyedropper tool (Alt+Click or Middle-Click).
+     *
+     * @param picked The tile clicked on the canvas.
+     */
+    public void pickTileFromCanvas(Tile picked) {
+        if (picked == null) return;
+
+        String category;
+        int index;
+        switch (picked.getTileType()) {
+            case SOLID -> {
+                category = "Solid Tiles";
+                index = picked.getRed();
+            }
+            case DECO -> {
+                category = "Decorations";
+                index = picked.getBlue();
+            }
+            case OBJECT -> {
+                category = "Objects";
+                index = picked.getBlue();
+            }
+            case ENEMY -> {
+                category = "Enemies";
+                index = picked.getGreen();
+            }
+            case PLAYER -> {
+                category = "Player";
+                index = 0;
+            }
+            case TRIGGER -> {
+                category = "Triggers";
+                index = picked.getBlue();
+            }
+            case NPC -> {
+                category = "NPCs";
+                index = picked.getBlue();
+            }
+            default -> {
+                return;
+            }
+        }
+
+        cbTypes.setSelectedItem(category);
+        updateImagePanel(category);
+        cbLayers.setSelectedItem(picked.getLayer());
+        saveLayer(picked.getLayer());
+
+        this.lastSelectedIndex = this.selectedIndex;
+        this.selectedIndex = index;
+        tabView.getSettings().updateParameter(SettingsKey.SELECTED_TILE, selectedIndex);
+        EditorFrame.getInstance().getProjectView().startAddState();
+        panel.repaint();
+
+        Framework.getInstance().log("Eyedropper picked: " + category + " [ID=" + index + ", Layer=" + picked.getLayer() + "]", LogType.INFORMATION);
+    }
+
     private void saveLayer(Integer selectedItem) {
-        tabView.getSettings().updateParameter(SettingsKey.SELECTED_LAYER, selectedItem);
+        if (selectedItem != null) {
+            tabView.getSettings().updateParameter(SettingsKey.SELECTED_LAYER, selectedItem);
+        }
     }
 
     private void getTileset(String selectedItem) {
@@ -136,30 +201,42 @@ public class BottomPanel extends JPanel {
         String selectedSet = "";
         Integer[] layerOptions = null;
 
-        if (selectedItem.equals("Solid Tiles")) {
-            selectedSet = "Solid Tiles";
-            layerOptions = new Integer[]{3, 5};
-            selectedImages = tiles;
-        }
-        else if (selectedItem.equals("Decorations")) {
-            selectedSet = "Decorations";
-            layerOptions = new Integer[]{0, 1, 2, 4};
-            selectedImages = decorations;
-        }
-        else if (selectedItem.equals("Objects")) {
-            selectedSet = "Objects";
-            layerOptions = new Integer[]{5};
-            selectedImages = objects;
-        }
-        else if (selectedItem.equals("Enemies")) {
-            selectedSet = "Enemies";
-            layerOptions = new Integer[]{5};
-            selectedImages = enemies;
-        }
-        else if (selectedItem.equals("Player")) {
-            selectedSet = "Player";
-            layerOptions = new Integer[]{5};
-            selectedImages = player;
+        switch (selectedItem) {
+            case "Solid Tiles" -> {
+                selectedSet = "Solid Tiles";
+                layerOptions = new Integer[]{3, 5};
+                selectedImages = tiles;
+            }
+            case "Decorations" -> {
+                selectedSet = "Decorations";
+                layerOptions = new Integer[]{0, 1, 2, 4};
+                selectedImages = decorations;
+            }
+            case "Objects" -> {
+                selectedSet = "Objects";
+                layerOptions = new Integer[]{5};
+                selectedImages = objects;
+            }
+            case "Enemies" -> {
+                selectedSet = "Enemies";
+                layerOptions = new Integer[]{5};
+                selectedImages = enemies;
+            }
+            case "Player" -> {
+                selectedSet = "Player";
+                layerOptions = new Integer[]{5};
+                selectedImages = player;
+            }
+            case "Triggers" -> {
+                selectedSet = "Triggers";
+                layerOptions = new Integer[]{5};
+                selectedImages = triggers;
+            }
+            case "NPCs" -> {
+                selectedSet = "NPCs";
+                layerOptions = new Integer[]{5};
+                selectedImages = npcs;
+            }
         }
 
         if (selectedImages != null) {
@@ -178,12 +255,13 @@ public class BottomPanel extends JPanel {
 
     private void displaySelectedImages(BufferedImage[] selectedImages) {
         GridBagConstraints constraints = new GridBagConstraints();
-        constraints.fill = GridBagConstraints.BOTH;
+        constraints.fill = GridBagConstraints.NONE;
         constraints.weightx = 1.0;
         constraints.weighty = 1.0;
-        constraints.insets = new Insets(10, 0, 10, 0);
+        constraints.insets = new Insets(6, 6, 6, 6);
 
-        for (int itemIndex = 0; itemIndex < selectedImages.length; itemIndex++) {
+        int limit = (selectedImages == tiles) ? Math.min(49, selectedImages.length) : selectedImages.length;
+        for (int itemIndex = 0; itemIndex < limit; itemIndex++) {
             if (fillGridLayout(constraints, itemIndex, selectedImages)) break;
         }
     }
@@ -195,11 +273,11 @@ public class BottomPanel extends JPanel {
         updateImagePanel((String) Objects.requireNonNull(cbTypes.getSelectedItem()));
     }
 
-    // [Class] Image panel
     private class ImagePanel extends JPanel {
 
         private final BufferedImage image;
         private final int index;
+        private boolean hovered = false;
 
         public ImagePanel(BufferedImage image, int index) {
             this.image = image;
@@ -210,13 +288,16 @@ public class BottomPanel extends JPanel {
 
         private void setupPanel() {
             this.setLayout(new BorderLayout());
-            this.setPreferredSize(new Dimension(TILE_SIZE, TILE_SIZE));
+            this.setPreferredSize(new Dimension(TILE_SIZE + 8, TILE_SIZE + 8));
+            this.setBackground( new Color(200, 212, 222));
+            this.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            this.setToolTipText("ID: " + index);
         }
 
         private void setupMouseListener() {
             this.addMouseListener(new MouseAdapter() {
                 @Override
-                public void mouseClicked(MouseEvent e) {
+                public void mousePressed(MouseEvent e) {
                     lastSelectedIndex = selectedIndex;
                     selectedIndex = ImagePanel.this.index;
                     tabView.getSettings().updateParameter(SettingsKey.SELECTED_TILE, selectedIndex);
@@ -229,20 +310,43 @@ public class BottomPanel extends JPanel {
                         }
                     }
                 }
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hovered = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hovered = false;
+                    repaint();
+                }
             });
         }
 
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            g.drawImage(image, 0, 0, TILE_SIZE, TILE_SIZE, null);
+            Graphics2D g2d = (Graphics2D) g.create();
+            g2d.drawImage(image, 4, 4, TILE_SIZE, TILE_SIZE, null);
 
             if (selectedIndex == index) {
-                g.setColor(Color.RED);
-                g.drawRect(0, 0, TILE_SIZE - 1, TILE_SIZE - 1);
+                g2d.setColor(new Color(231, 76, 60));
+                g2d.setStroke(new BasicStroke(2.5f));
+                g2d.drawRect(1, 1, getWidth() - 3, getHeight() - 3);
             }
+            else if (hovered) {
+                g2d.setColor(BUTTON_COLOR);
+                g2d.setStroke(new BasicStroke(1.5f));
+                g2d.drawRect(1, 1, getWidth() - 3, getHeight() - 3);
+            }
+            else {
+                g2d.setColor(new Color(157, 178, 191));
+                g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+            }
+            g2d.dispose();
         }
 
     }
-
 }

@@ -1,124 +1,133 @@
-# Level Editor for Platformer Games
+# Merciless Warrior - Level Editor
 
-<img src="https://i.ibb.co/gvwwhBb/Editor.png" alt="Screenshot" width="100%">
+![Java](https://img.shields.io/badge/Java-17%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Swing](https://img.shields.io/badge/GUI-Java%20Swing-007396?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-2ECC71?style=flat-square)
+
+<img src="docs/Editor.png" alt="Level Editor Overview" width="90%">
+
+## Overview
+
+This is the dedicated level editor built for **Merciless Warrior**, a 2D action platformer written in Java.
+
+Initially, I considered using a general-purpose tool, but Merciless Warrior relies on a custom 3-panel RGB pixel format, specific multi-layer rendering rules, and custom entity/trigger bindings. Building a dedicated editor in allowed me to match the game's exact rendering pipeline, automate auto-tiling, validate platforming jump physics, and integrate an async AI co-pilot directly into the level design workflow.
 
 ## Table of Contents
 
-- [Description](#description)
-- [Features](#features)
-- [Pixel image encoding](#pixel-image-encoding)
-- [Usage](#usage)
-- [Integration into games](#integration-into-games)
-- [Patterns used](#patterns-used)
-- [Dependencies](#dependencies)
-- [Contributing](#contributing)
+- [Key Features](#key-features)
+    - [Smart Painting & Auto-Tiling](#1-smart-painting--auto-tiling)
+    - [Asynchronous Co-Op AI Inpainting](#2-asynchronous-co-op-ai-inpainting)
+    - [Procedural Generation & Jump Validation](#3-procedural-generation--jump-validation)
+    - [Multi-Layer Rendering & Subterranean Cutaways](#4-multi-layer-rendering--subterranean-cutaways)
+- [3-Panel RGB Pixel Format](#3-panel-rgb-pixel-format)
+- [Controls & Keyboard Shortcuts](#controls--keyboard-shortcuts)
 - [License](#license)
 
-## Description
+---
 
-This tool empowers game developers and designers to create, edit, and manage levels for platformer games in an intuitive and efficient manner. Below, you will find information about the features, usage, and technical aspects of the project. <br>
-Whether you're a game developer or a hobbyist, this editor simplifies the level design process by offering a user-friendly interface and innovative features.
+## Key Features
 
-## Features
+### 1. Smart Painting & Auto-Tiling
 
-### 1. Project and Level Management
-- Create and manage multiple projects.
-- Create and edit multiple levels within each project.
-- Serialize and deserialize project and level data.
-### 2. Tabbed Interface
-- Open projects with levels displayed as separate tabs.
-- Each tab represents a distinct level within the project.
-### 3. Tile Set Integration
-- Utilize existing tile sets for level creation.
-- Import custom tile sets for a personalized experience.
-### 4. Layered Object Placement
-- Add various objects to levels on multiple layers.
-- Layers include solid tiles, decorations, objects, and enemies.
-### 5. Export Options
-- Save levels as images for visual reference.
-- Export levels as pixel images for integration into games.
+Drawing cave and forest geometry by hand usually takes a lot of time when you have to manually pick outer corners, inner concave corners, T-junctions, and 1-tile bridge caps.
 
-## Pixel image encoding
+* **Real-time auto-tiler:** When **Smart Auto-Tile** is enabled in the side panel, painting or erasing automatically checks all 8 neighbors (cardinal + diagonal) and updates the surrounding tile edges in real time.
+* **Flood fill & rectangle fill:** Fill enclosed areas with the **Bucket** tool, or drag a box with **Rect Fill** to build (or hold `Shift` to erase) large terrain sections at once.
+* **Ghost cursor previews & eyedropper:** Hovering over the grid renders a translucent preview of the selected tile, multi-tile decoration (with its true pixel offsets), or copied clipboard group before you click. Holding `Alt + Left-Click` (or `Middle-Click`) picks any tile from the canvas directly into your active brush.
+* **Stroke-based undo/redo:** Continuous mouse drag strokes, multi-tile moves, and region edits are grouped into atomic commands with independent undo/redo stacks per tab.
 
-One innovative approach offered by this editor is the ability to represent levels as pixel images. Each pixel's RGB values encode specific elements or features of the level. This method simplifies the level design process and allows for easy integration into games.
+<!-- Replace with your recorded GIF of Smart Brush + Rect Fill -->
+<p align="center">
+  <img src="docs/smart-brush.gif" alt="Smart Auto-Tile Brush and Rect Fill" width="48%">
+  <img src="docs/bucket-fill.gif" alt="Bucket Fill" width="48%">
+</p>
 
-<img src="https://i.ibb.co/hfSJw6P/Pixel.png" alt="PixelImg" width="100%">
+---
 
-For instance, you can assign RGB values to different objects or terrain types:
+### 2. Asynchronous Co-Op AI Inpainting
 
-- Red (value, 255, 255) could represent solid tiles.
-- White (255, 255, 255) could represent empty space.
-- Green (255, value, 255) could represent enemies.
-- Blue (255, 255, value) could represent objects.
+Instead of only generating full levels from scratch and overwriting manual work, the editor includes a non-blocking **Co-Op AI** mode powered by the Gemini API.
 
-This approach simplifies level creation by allowing developers to utilize graphic software for designing levels, then effortlessly integrating them into games as images. This technique is particularly beneficial for less intricate games or those with a vintage vibe, highlighting manual level design.
+1. Use the **Select** tool to drag a rectangle over any part of your level.
+2. Open the **Generator** dialog, type what you want in that specific region (for example: *"connect these two cliffs with a flat floor and add two trees and a crate"* or *"make a subterranean cavern with a boulder and glowing mushrooms"*), and click **Co-Op AI**.
+3. The dialog closes immediately and locks **only** that rectangle with an animated overlay.
+4. While the background worker thread sends the panel context to Gemini and computes the new nodes off-thread, you can continue painting, decorating, or even launching a second AI worker on another part of the map.
+5. When the worker finishes, it patches only that rectangle on the Swing EDT via `RegionPatchCommand` and stitches the 1-tile perimeter seam with the auto-tiler. Pressing `Ctrl+Z` undoes the AI patch without touching anything you drew outside the box.
 
-## Usage
+<!-- Replace with your recorded GIF of Co-Op AI running while you draw elsewhere -->
+<p>
+  <img src="docs/coop-ai.gif" alt="Asynchronous Co-Op AI Inpainting" width="70%">
+</p>
 
-### Installation
-- Clone this repository.
-- Ensure you have Java Development Kit (JDK 10.0.2) installed.
-- Install the required dependencies (see [Dependencies](#dependencies)).
-- Compile the game using your preferred Java IDE or command line.
-- Run the compiled game executable.
-### Creating Projects
-- Launch the editor.
-- Create a new project.
-- Start adding levels to it.
-### Level Design 
-- Choose tiles from existing tile sets or import custom ones for diverse designs.
-- Select tile in bottom panel, select layer and click 'Add' button to place tile.
-### Serialization
-- Serialize your projects and levels for easy sharing or storage.
-### Pixel Image Import/Export
-For game integration, design your level and export it as a pixel image. The RGB values of each pixel encode the corresponding elements. Use the predefined RGB values to interpret the pixel information correctly.
+---
 
-## Integration into games
+### 3. Procedural Generation & Jump Validation
 
-To integrate the pixel images created in the Level Editor into your game, follow these steps:
+For rapid prototyping without an internet connection or API key, the editor includes an offline procedural generator with five room archetypes:
 
-1. **Generate Pixel Images**: Use the Level Editor to design and save your game levels as pixel images. These images are composed of two sections: the left section contains information about solid tiles, objects, and enemies, while the right section holds decorations. <br> <img src="https://i.ibb.co/j44P1Lw/PixelImg.png" alt="PixelImg" width="100%">
+* **True Random Cave & Cliffs:** Uses 2D multi-octave Perlin/value noise, drunkard's walk tunnelers, cellular automata smoothing, and hidden destructible-brick loot alcoves.
+* **Physics-aware playability validator (`PlayabilityValidator`):** After carving a room, the validator runs a Breadth-First Search (BFS) over standable floor tiles using the player's actual jump constraints (`max jump height = 3 tiles`, `max jump distance = 4 tiles`, plus 2-tile hitbox headroom checks along parabolic arcs). If the exit or an upper ledge is unreachable, it automatically builds staggered stepping platforms to guarantee the room is beatable.
+* **Full auto-decorator (`AutoDecoratorEngine`):** Populates floors, walls, and ceilings with trees, stone pillars, boulders, bushes, flowers, logs, glowing mushrooms, crystals, and hanging vines while checking sprite footprints and avoiding spike/lava hazards.
 
-2. **Solid Tiles, Objects, and Enemies**:
-   - In the left section of the pixel image, solid tiles, objects, and enemies are represented.
-   - Solid tiles can be found on either layer 3 or layer 5.
-   - If they are on layer 3, only the RED value serves as the ID of tile in the RGB format, while G and B are both set to 254.
-   - If solid tiles are on layer 5, similarly, the RED value represents the ID of tile, but G and B are both set to 255.
-   - For enemies, the GREEN value is utilized, with RED and BLUE set to 254.
-   - Objects are identified using the BLUE value, with RED and GREEN set to 254.
-   - In your game's code, extract the pixel values of the image's left section to recreate solid tiles, objects, and enemies in the respective layers and positions.
+<!-- Replace with your recorded GIF of Procedural Generation + Export Preview -->
+<p align="center">
+  <img src="docs/gifs/procedural-and-export.gif" alt="Procedural Generation and Export Preview" width="90%">
+</p>
 
-3. **Decorations**:
-   - The right section of the pixel image contains decoration data.
-   - Decorations are placed on layers 0, 1, 2, or 4.
-   - The GREEN value determines the decoration layer, while the BLUE value signifies the decoration's ID.
-   - Extract the pixel values from the image's right section in your game to accurately position and render the decorations.
+---
 
-4. **Reading Pixel Data**:
-   - Utilize your game's image processing or pixel reading capabilities to interpret the RGB values of the pixel image.
-   - Use the provided RGB mappings to extract information about tiles, objects, enemies, and decorations.
-   - Implement the logic to place these elements in your game's level based on the pixel data.
-  
-## Patterns used
+### 4. Multi-Layer Rendering & Subterranean Cutaways
 
-The project incorporates various design patterns to ensure stability and maintainability, including:
-- Singleton (Thread safe)
-- Observer
-- Composite
-- Abstract Factory
-- State
-- Command
-- Strategy
-- Combinator
+The editor uses Z-layering:
 
-## Dependencies
+| Layer | Category | Purpose in Game Engine |
+| :--- | :--- | :--- |
+| **Layer 0, 1, 2** | Decorations | Background props rendered behind solid terrain (trees, pillars, boulders, border fade caps, and black cavern backing `34:2`). |
+| **Layer 3** | Solid Tiles | Primary playable collision terrain (floors, walls, ceilings, floating bridges). |
+| **Layer 4** | Decorations | Foreground grass and props placed inside subterranean wall pockets. |
+| **Layer 5** | Solid / Entities | Subterranean background caverns/hills (`R:255:255`), interactive objects, enemies, player spawn, triggers, and NPCs. |
 
-- Java Swing
-- GSON Serializer
+---
 
-## Contributing
+## 3-Panel RGB Pixel Format
 
-Contributions to this project are welcome! Feel free to submit bug reports, feature requests, or pull requests. Let's collaborate to make this Level Editor even better.
+To keep level files tiny and fast to parse in the game engine, levels are exported as a single composite PNG (`width * 3` by `height`) alongside an optional `.json` metadata file.
+
+<img src="docs/rgb.png" alt="3-Panel Pixel Image Encoding" width="100%">
+
+### 1. Composite PNG Layout
+
+| Panel | X Range | Element Type | Red (`R`)                                                | Green (`G`)                                                      | Blue (`B`)                                                        |
+| :--- | :--- | :--- |:---------------------------------------------------------|:-----------------------------------------------------------------|:------------------------------------------------------------------|
+| **Panel 1 (Left)**<br>Physical World | `0 .. W-1` | Solid Terrain (Layer 3)<br>Subterranean Solid (Layer 5)<br>Enemy Spawn<br>Interactive Object<br>Player Spawn<br>Empty Air | `0 .. K`<br>`0 .. K`<br>`254`<br>`254`<br>`100`<br>`254` | `254`<br>`255`<br>`0 .. E` (Enemy ID)<br>`254`<br>`100`<br>`254` | `254`<br>`255`<br>`254`<br>`0 .. P` (Object ID)<br>`100`<br>`254` |
+| **Panel 2 (Middle)**<br>Decorations | `W .. 2W-1` | Decoration Sprite | `254`                                                    | `0, 1, 2, 4` (Z-Layer)                                           | `0 .. D` (Deco ID)                                                |
+| **Panel 3 (Right)**<br>Logic & NPCs | `2W .. 3W-1` | Spatial Trigger<br>NPC Spawn | `254`<br>`0`                                             | `254`<br>`0`                                                     | `0 .. T` (Trigger ID)<br>`0 .. N` (NPC ID)                        |
+
+### 2. Companion Metadata
+
+While the PNG stores grid coordinates, tile IDs, and layers, the exported `.json` file stores floating-point transformation data (custom rotation angles and X/Y scale multipliers) for any decorations modified with the **Edit** tool, as well as level background IDs and point lights.
+
+---
+
+## Controls & Keyboard Shortcuts
+
+| Input / Shortcut | Action |
+| :--- | :--- |
+| `Left-Click / Drag` | Use active tool (Add, Delete, Select, Move, Bucket, Rect Fill) |
+| `Right-Click + Drag` | Pan around the level canvas |
+| `Alt + Left-Click` or `Middle-Click` | **Eyedropper:** Pick tile, category, and layer from canvas |
+| `Ctrl + Mouse Wheel` | Zoom in / Zoom out (`30%` to `300%`) |
+| `Mouse Wheel` / `Shift + Wheel` | Scroll vertically / Scroll horizontally |
+| `Ctrl + Z` / `Ctrl + Y` | Undo / Redo (per level tab) |
+| `Ctrl + C` / `Ctrl + V` | Copy selected tiles / Enter Paste mode |
+| `Shift + Drag` (in **Select** tool) | Add to current tile selection |
+| `Shift + Drag` (in **Rect Fill** tool) | Erase all tiles inside the dragged box |
+| `Ctrl + G` | Toggle grid visibility |
+| `Ctrl + N` / `Ctrl + O` / `Ctrl + S` | New project or level / Open project / Save project |
+| `Ctrl + R` | Open Project & Level Options (rename, stats, duplicate, batch export) |
+| `F1` | Open in-app Help & RGB Encoding reference guide |
+
+---
 
 ## License
 

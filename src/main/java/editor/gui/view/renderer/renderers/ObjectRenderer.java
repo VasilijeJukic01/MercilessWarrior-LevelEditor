@@ -20,8 +20,9 @@ public class ObjectRenderer implements RenderStrategy<Tile> {
 
     @Override
     public void render(Graphics g, Tile tile, int layer) {
+        if (tile.getTileType() != TileType.OBJECT || tile.getLayer() != layer) return;
         int value = tile.getBlue();
-        if (value != -1 && tile.getTileType() == TileType.OBJECT) {
+        if (value != -1 && value < LvlObjType.MAX.ordinal()) {
             LvlObjType obj = LvlObjType.values()[value];
             int x = tile.getX() * TILE_SIZE + obj.getXOffset();
             int y = tile.getY() * TILE_SIZE + obj.getYOffset();

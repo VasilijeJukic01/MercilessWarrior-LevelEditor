@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Forest",
+    "spritePath": "/images/tiles/mossyTiles.png",
+    "rows": 7,
+    "columns": 7,
+    "tileSizeInSprite": 274,
+    "tileCount": 49
+  }
+]

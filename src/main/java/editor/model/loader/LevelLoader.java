@@ -4,6 +4,8 @@ import editor.core.Framework;
 import editor.core.Loader;
 import editor.gui.view.EditorFrame;
 import editor.logger.LogType;
+import editor.model.metadata.LevelMetadata;
+import editor.model.metadata.ObjectMetadata;
 import editor.model.repository.Composite;
 import editor.model.repository.Node;
 import editor.model.repository.components.Tile;
@@ -26,28 +28,58 @@ public class LevelLoader implements Loader {
 
     @Override
     public void load(File file) {
+        load(file, null);
+    }
+
+    public void load(File file, LevelMetadata metadata) {
         try {
             BufferedImage levelImg = ImageIO.read(file);
-            String name = file.getName().substring(0, file.getName().indexOf("."));
+            String name = file.getName().substring(0, file.getName().lastIndexOf('.'));
             Level level = EditorFrame.getInstance().getCurrentTab().getLevel();
-            level.setSize(levelImg.getWidth()/2, levelImg.getHeight());
+
+            int panelWidth = levelImg.getWidth() / 3;
+
+            level.setSize(panelWidth, levelImg.getHeight());
             level.setName(name);
 
             level.getChildren().clear();
 
-            getLevelData(levelImg, level);
-            getObjectData(levelImg, level);
-            getEnemyData(levelImg, level);
-            getDecoData(levelImg, level);
-            getPlayer(levelImg, level);
+            getLevelData(levelImg, level, panelWidth);
+            getObjectData(levelImg, level, panelWidth);
+            getEnemyData(levelImg, level, panelWidth);
+            getDecoData(levelImg, level, panelWidth);
+            getPlayer(levelImg, level, panelWidth);
+            getTriggerData(levelImg, level, panelWidth);
 
+            if (metadata != null) {
+                applyMetadata(level, metadata);
+                Framework.getInstance().log("Successfully applied metadata for " + name, LogType.INFORMATION);
+            }
             Framework.getInstance().log("Level imported: "+name, LogType.INFORMATION);
         }
-        catch (Exception ignored) {}
+        catch (Exception e) {
+            Framework.getInstance().log("Failed to import level: " + e.getMessage(), LogType.ERROR);
+        }
     }
 
-    private void getLevelData(BufferedImage levelImg, Composite<Node> level) { // Red
-        for (int i = 0; i < levelImg.getWidth()/2; i++) {
+    private void applyMetadata(Level level, LevelMetadata metadata) {
+        for (ObjectMetadata meta : metadata.getDecorations()) {
+            for (Node node : level.getChildren()) {
+                if (node instanceof Tile) {
+                    Tile tile = (Tile) node;
+                    if (tile.getTileType() == TileType.DECO && tile.getX() == meta.getX() && tile.getY() == meta.getY() && tile.getLayer() == meta.getLayer()) {
+                        tile.setRotation(meta.getRotation());
+                        tile.setScaleX(meta.getScaleX());
+                        tile.setScaleY(meta.getScaleY());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private void getLevelData(BufferedImage levelImg, Composite<Node> level, int panelWidth) { // Red
+        for (int i = 0; i < panelWidth; i++) {
             for (int j = 0; j < levelImg.getHeight(); j++) {
                 Color color = new Color(levelImg.getRGB(i, j));
                 int value = color.getRed();
@@ -64,8 +96,8 @@ public class LevelLoader implements Loader {
         }
     }
 
-    public void getObjectData(BufferedImage levelImg, Composite<Node> level) { // Blue
-        for (int i = 0; i < levelImg.getWidth()/2; i++) {
+    public void getObjectData(BufferedImage levelImg, Composite<Node> level, int panelWidth) { // Blue
+        for (int i = 0; i < panelWidth; i++) {
             for (int j = 0; j < levelImg.getHeight(); j++) {
                 Color color = new Color(levelImg.getRGB(i, j));
                 int value = color.getBlue();
@@ -77,8 +109,8 @@ public class LevelLoader implements Loader {
         }
     }
 
-    public void getEnemyData(BufferedImage levelImg, Composite<Node> level) { // Green
-        for (int i = 0; i < levelImg.getWidth()/2; i++) {
+    public void getEnemyData(BufferedImage levelImg, Composite<Node> level, int panelWidth) { // Green
+        for (int i = 0; i < panelWidth; i++) {
             for (int j = 0; j < levelImg.getHeight(); j++) {
                 Color color = new Color(levelImg.getRGB(i, j));
                 int value = color.getGreen();
@@ -90,23 +122,24 @@ public class LevelLoader implements Loader {
         }
     }
 
-    private void getDecoData(BufferedImage levelImg, Composite<Node> level) { // Blue && Green
-        for (int i = levelImg.getWidth()/2; i < levelImg.getWidth(); i++) {
+    private void getDecoData(BufferedImage levelImg, Composite<Node> level, int panelWidth) { // Blue && Green
+        int decoEnd = Math.min(levelImg.getWidth(), panelWidth * 2);
+        for (int i = panelWidth; i < decoEnd; i++) {
             for (int j = 0; j < levelImg.getHeight(); j++) {
                 Color color = new Color(levelImg.getRGB(i, j));
                 int decoValue = color.getBlue();
                 int layerValue = color.getGreen();
                 if (decoValue >= DECO_NUM) continue;
                 if (layerValue > 5) layerValue = -1;
-                Tile tile = new Tile("", level, TileType.DECO, i - levelImg.getWidth()/2, j, 254, layerValue, decoValue);
+                Tile tile = new Tile("", level, TileType.DECO, i - panelWidth, j, 254, layerValue, decoValue);
                 tile.setLayer(layerValue);
                 level.addChild(tile);
             }
         }
     }
 
-    private void getPlayer(BufferedImage levelImg, Composite<Node> level) {
-        for (int i = 0; i < levelImg.getWidth()/2; i++) {
+    private void getPlayer(BufferedImage levelImg, Composite<Node> level, int panelWidth) {
+        for (int i = 0; i < panelWidth; i++) {
             for (int j = 0; j < levelImg.getHeight(); j++) {
                 Color color = new Color(levelImg.getRGB(i, j));
                 int R = color.getRed();
@@ -117,6 +150,25 @@ public class LevelLoader implements Loader {
                     tile.setLayer(5);
                     level.addChild(tile);
                     return;
+                }
+            }
+        }
+    }
+
+    private void getTriggerData(BufferedImage levelImg, Composite<Node> level, int panelWidth) {
+        for (int i = panelWidth * 2; i < levelImg.getWidth(); i++) {
+            for (int j = 0; j < levelImg.getHeight(); j++) {
+                Color color = new Color(levelImg.getRGB(i, j));
+                int blueValue = color.getBlue();
+                if (blueValue < LvlTriggerType.MAX.ordinal() && color.getRed() == 254 && color.getGreen() == 254) {
+                    Tile tile = new Tile("", level, TileType.TRIGGER, i - (panelWidth * 2), j, 254, 254, blueValue);
+                    tile.setLayer(5);
+                    level.addChild(tile);
+                }
+                else if (blueValue < LvlNpcType.MAX.ordinal() && color.getRed() == 0 && color.getGreen() == 0) {
+                    Tile tile = new Tile("", level, TileType.NPC, i - (panelWidth * 2), j, 0, 0, blueValue);
+                    tile.setLayer(5);
+                    level.addChild(tile);
                 }
             }
         }

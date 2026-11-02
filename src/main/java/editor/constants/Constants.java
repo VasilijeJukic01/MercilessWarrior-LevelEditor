@@ -5,7 +5,7 @@ import java.awt.*;
 public class Constants {
 
     // Size
-    public static final int SCREEN_WID = 1500;
+    public static final int SCREEN_WID = 1600;
     public static final int SCREEN_HEI = 800;
     public static final int EXPLORER_WID = 200;
     public static final int EXPLORER_HEI = 150;
@@ -33,12 +33,8 @@ public class Constants {
     public static int EDITOR_PICKER_COL = 10;
 
     public static int TILE_SIZE = 64;
-    public static int FOREST_SPRITE_ROW = 7;
-    public static int FOREST_SPRITE_COL = 7;
-    public static int FOREST_TILES = 49;
-    public static final int FOREST_TILE_SIZE = 274;
 
-    public static final int DECO_NUM = 40;
+    public static final int DECO_NUM = 80;
 
     // Counter
     public static int PROJECT_NUM = 1;
