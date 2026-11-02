@@ -1,5 +1,6 @@
 package editor.gui.view.tab;
 
+import editor.command.CommandManager;
 import editor.core.Framework;
 import editor.gui.controller.tabController.TabKeyListener;
 import editor.gui.controller.tabController.TabMouseListener;
@@ -52,6 +53,7 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
     private final Renderer renderer;
     private TabKeyListener tabKeyListener;
 
+    private final CommandManager commandManager = new CommandManager();
     private final List<ActiveAiZone> activeAiZones = new CopyOnWriteArrayList<>();
     private Timer aiRepaintTimer;
 
@@ -309,6 +311,10 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
 
     public double getDy() {
         return dy;
+    }
+
+    public CommandManager getCommandManager() {
+        return commandManager;
     }
 
     public void setDx(double dx) {
