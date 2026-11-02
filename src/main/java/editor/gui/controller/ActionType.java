@@ -8,7 +8,6 @@ public enum ActionType {
     SAVE_AS_FILE,
     CLOSE_FILE,
     RENAME_FILE,
-    ADD_AUTHOR,
     IMPORT,
     EXPORT,
     ADD_NODE,
