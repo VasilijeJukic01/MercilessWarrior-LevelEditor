@@ -20,8 +20,9 @@ public class EnemyRenderer implements RenderStrategy<Tile> {
 
     @Override
     public void render(Graphics g, Tile tile, int layer) {
+        if (tile.getTileType() != TileType.ENEMY || tile.getLayer() != layer) return;
         int value = tile.getGreen();
-        if (value != -1 && tile.getTileType() == TileType.ENEMY) {
+        if (value != -1 && value < LvlEnemyType.MAX.ordinal()) {
             LvlEnemyType enemy = LvlEnemyType.values()[value];
             int x = tile.getX() * TILE_SIZE + enemy.getXOffset();
             int y = (tile.getY() - 1) * TILE_SIZE + enemy.getYOffset();

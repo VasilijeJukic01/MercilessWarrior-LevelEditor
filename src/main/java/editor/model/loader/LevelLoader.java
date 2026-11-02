@@ -123,7 +123,8 @@ public class LevelLoader implements Loader {
     }
 
     private void getDecoData(BufferedImage levelImg, Composite<Node> level, int panelWidth) { // Blue && Green
-        for (int i = panelWidth; i < levelImg.getWidth(); i++) {
+        int decoEnd = Math.min(levelImg.getWidth(), panelWidth * 2);
+        for (int i = panelWidth; i < decoEnd; i++) {
             for (int j = 0; j < levelImg.getHeight(); j++) {
                 Color color = new Color(levelImg.getRGB(i, j));
                 int decoValue = color.getBlue();
@@ -158,10 +159,14 @@ public class LevelLoader implements Loader {
         for (int i = panelWidth * 2; i < levelImg.getWidth(); i++) {
             for (int j = 0; j < levelImg.getHeight(); j++) {
                 Color color = new Color(levelImg.getRGB(i, j));
-                int triggerValue = color.getBlue();
-
-                if (triggerValue < LvlTriggerType.MAX.ordinal() && color.getRed() == 254 && color.getGreen() == 254) {
-                    Tile tile = new Tile("", level, TileType.TRIGGER, i - (panelWidth * 2), j, 254, 254, triggerValue);
+                int blueValue = color.getBlue();
+                if (blueValue < LvlTriggerType.MAX.ordinal() && color.getRed() == 254 && color.getGreen() == 254) {
+                    Tile tile = new Tile("", level, TileType.TRIGGER, i - (panelWidth * 2), j, 254, 254, blueValue);
+                    tile.setLayer(5);
+                    level.addChild(tile);
+                }
+                else if (blueValue < LvlNpcType.MAX.ordinal() && color.getRed() == 0 && color.getGreen() == 0) {
+                    Tile tile = new Tile("", level, TileType.NPC, i - (panelWidth * 2), j, 0, 0, blueValue);
                     tile.setLayer(5);
                     level.addChild(tile);
                 }

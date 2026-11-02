@@ -13,7 +13,7 @@ public class NpcRenderer implements RenderStrategy<Tile> {
 
     @Override
     public void render(Graphics g, Tile tile, int layer) {
-        if (tile.getTileType() != TileType.NPC) return;
+        if (tile.getTileType() != TileType.NPC || tile.getLayer() != layer) return;
 
         int value = tile.getBlue();
         if (value < 0 || value >= LvlNpcType.MAX.ordinal()) return;

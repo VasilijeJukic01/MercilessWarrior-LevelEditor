@@ -13,7 +13,7 @@ public class TriggerRenderer implements RenderStrategy<Tile> {
 
     @Override
     public void render(Graphics g, Tile tile, int layer) {
-        if (tile.getTileType() != TileType.TRIGGER) return;
+        if (tile.getTileType() != TileType.TRIGGER || tile.getLayer() != layer) return;
 
         int value = tile.getBlue();
         if (value < 0 || value >= LvlTriggerType.MAX.ordinal()) return;
