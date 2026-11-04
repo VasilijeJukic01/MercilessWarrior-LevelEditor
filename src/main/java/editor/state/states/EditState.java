@@ -3,10 +3,10 @@ package editor.state.states;
 import editor.gui.view.EditorFrame;
 import editor.gui.view.tab.EditDialog;
 import editor.gui.view.tab.TabView;
-import editor.model.repository.Node;
 import editor.model.repository.components.Tile;
 import editor.settings.SettingsKey;
 import editor.state.State;
+import editor.state.TileHitDetector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +17,7 @@ public class EditState implements State<TabView> {
 
     private int lastClickX = -1, lastClickY = -1;
     private int cycleIndex = 0;
-    private final List<Tile> tilesAtLastLocation = new ArrayList<>();
+    private List<Tile> tilesAtLastLocation = new ArrayList<>();
 
     @Override
     public void clickPerform(int x, int y, TabView tabView) {
@@ -28,14 +28,11 @@ public class EditState implements State<TabView> {
             lastClickX = tileX;
             lastClickY = tileY;
             cycleIndex = 0;
-
-            tilesAtLastLocation.clear();
-            for (Node child : tabView.getLevel().getChildren()) {
-                Tile t = (Tile) child;
-                if (t.getX() == tileX && t.getY() == tileY) tilesAtLastLocation.add(t);
-            }
+            tilesAtLastLocation = TileHitDetector.findVisibleTilesAt(x, y, tabView);
+        } else {
+            tilesAtLastLocation = TileHitDetector.findVisibleTilesAt(x, y, tabView);
+            cycleIndex++;
         }
-        else cycleIndex++;
 
         if (tilesAtLastLocation.isEmpty()) {
             lastClickX = -1;
@@ -52,7 +49,6 @@ public class EditState implements State<TabView> {
         tabView.getLevel().notify(selection);
         EditDialog editDialog = new EditDialog(EditorFrame.getInstance(), true, tileToEdit);
         editDialog.setVisible(true);
-        selection.clear();
         tabView.getLevel().notify(selection);
     }
 
