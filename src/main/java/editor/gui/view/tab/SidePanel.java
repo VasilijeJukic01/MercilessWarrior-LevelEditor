@@ -79,13 +79,20 @@ public class SidePanel extends JPanel {
         container.add(createSectionHeader("BRUSH & VIEW"));
         container.add(Box.createVerticalStrut(6));
 
-        JPanel optionsCard = createCardPanel(new GridLayout(3, 1, 0, 6));
+        JPanel optionsCard = createCardPanel(new GridLayout(4, 1, 0, 6));
 
         JCheckBox chkSmartBrush = createStyledCheckBox("Smart Auto-Tile");
         chkSmartBrush.setSelected(true);
-        chkSmartBrush.setToolTipText("Automatically updates 8-neighbor edges and corners on Layer 3");
+        chkSmartBrush.setToolTipText("Automatically updates 8-neighbor edges and corners");
         chkSmartBrush.addItemListener(e ->
                 tabView.getSettings().updateParameter(SettingsKey.SMART_BRUSH, chkSmartBrush.isSelected())
+        );
+
+        JCheckBox chkCaveBrush = createStyledCheckBox("Cave Mode (Invert)");
+        chkCaveBrush.setSelected(false);
+        chkCaveBrush.setToolTipText("Inverts Smart Brush to carve inward-facing hollow caves instead of outward hills");
+        chkCaveBrush.addItemListener(e ->
+                tabView.getSettings().updateParameter(SettingsKey.CAVE_BRUSH, chkCaveBrush.isSelected())
         );
 
         JCheckBox chkGrid = createStyledCheckBox("Show Grid");
@@ -99,6 +106,7 @@ public class SidePanel extends JPanel {
         chkFade.addItemListener(this::changeFade);
 
         optionsCard.add(chkSmartBrush);
+        optionsCard.add(chkCaveBrush);
         optionsCard.add(chkGrid);
         optionsCard.add(chkFade);
 

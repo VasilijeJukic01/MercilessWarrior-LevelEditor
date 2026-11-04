@@ -67,6 +67,14 @@ public class AddState implements State<TabView> {
         int index = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_TILE);
         int layer = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_LAYER);
         boolean smartBrush = Boolean.TRUE.equals(tabView.getSettings().getParameter(SettingsKey.SMART_BRUSH));
+        boolean caveBrush = Boolean.TRUE.equals(tabView.getSettings().getParameter(SettingsKey.CAVE_BRUSH));
+
+        if (smartBrush && caveBrush && set.equals("Solid Tiles") && layer == 5) {
+            autoTiler.carveLayer5CavernRegion(level, tileX, tileY, tileX, tileY);
+            strokeModified = true;
+            level.notify(level);
+            return;
+        }
 
         List<Tile> tiles = getTileSet(set, tabView);
         if (tiles == null) return;
@@ -83,8 +91,12 @@ public class AddState implements State<TabView> {
         if (newTile != null) {
             newTile.setLayer(layer);
             level.getChildren().add(newTile);
-            if (smartBrush && newTile.getTileType() == TileType.SOLID && layer == 3) {
-                autoTiler.updateRegionAutoTiles(level, tileX - 1, tileY - 1, tileX + 1, tileY + 1);
+            if (smartBrush && newTile.getTileType() == TileType.SOLID) {
+                if (layer == 3) {
+                    autoTiler.updateRegionAutoTiles(level, tileX - 1, tileY - 1, tileX + 1, tileY + 1);
+                } else if (layer == 5) {
+                    autoTiler.updateLayer5AutoTiles(level, tileX - 1, tileY - 1, tileX + 1, tileY + 1);
+                }
             }
             strokeModified = true;
             level.notify(level);
@@ -121,10 +133,22 @@ public class AddState implements State<TabView> {
     private Tile getSolidTile(TabView tabView, List<Tile> tiles, int index, int layer, int tileX, int tileY) {
         for (Tile tile : tiles) {
             if (tile.getRed() == index) {
-                if (!isFree(tileX, tileY, tabView.getLevel(), List.of(TileType.SOLID, TileType.OBJECT, TileType.ENEMY, TileType.PLAYER))) return null;
+                Level level = tabView.getLevel();
+                if (layer == 5) {
+                    for (Node n : level.getChildren()) {
+                        Tile t = (Tile) n;
+                        if (t.getX() == tileX && t.getY() == tileY && t.getTileType() == TileType.SOLID && t.getLayer() == 5) {
+                            return null;
+                        }
+                    }
+                    level.getChildren().removeIf(n -> n instanceof Tile t && t.getX() == tileX && t.getY() == tileY && t.getTileType() == TileType.SOLID && t.getLayer() == 3);
+                }
+                else {
+                    if (!isFree(tileX, tileY, level, List.of(TileType.SOLID, TileType.OBJECT, TileType.ENEMY, TileType.PLAYER))) return null;
+                }
                 int green = (layer == 5) ? 255 : 254;
                 int blue = (layer == 5) ? 255 : 254;
-                return new Tile("", tabView.getLevel(), TileType.SOLID, tileX, tileY, index, green, blue);
+                return new Tile("", level, TileType.SOLID, tileX, tileY, index, green, blue);
             }
         }
         return null;

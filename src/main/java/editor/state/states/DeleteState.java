@@ -103,8 +103,13 @@ public class DeleteState implements State<TabView> {
             int targetX = target.getX();
             int targetY = target.getY();
             level.getChildren().remove(target);
-            if (smartBrush && target.getTileType() == TileType.SOLID && target.getLayer() == 3) {
-                autoTiler.updateRegionAutoTiles(level, targetX - 1, targetY - 1, targetX + 1, targetY + 1);
+            if (smartBrush && target.getTileType() == TileType.SOLID) {
+                if (target.getLayer() == 3) {
+                    autoTiler.updateRegionAutoTiles(level, targetX - 1, targetY - 1, targetX + 1, targetY + 1);
+                }
+                else if (target.getLayer() == 5) {
+                    autoTiler.updateLayer5AutoTiles(level, targetX - 1, targetY - 1, targetX + 1, targetY + 1);
+                }
             }
             strokeModified = true;
             level.notify(level);

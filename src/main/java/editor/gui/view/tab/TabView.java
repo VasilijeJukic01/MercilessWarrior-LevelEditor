@@ -86,6 +86,7 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         this.settings.addParameter(SettingsKey.TILE_SET, "Forest");
         this.settings.addParameter(SettingsKey.EXPORT_TYPE, "Both");
         this.settings.addParameter(SettingsKey.SMART_BRUSH, true);
+        this.settings.addParameter(SettingsKey.CAVE_BRUSH, false);
         this.settings.addParameter(SettingsKey.SELECTED_REGION, null);
     }
 

@@ -14,5 +14,6 @@ public enum SettingsKey {
     BACKGROUND,
     TILE_SET,
     EXPORT_TYPE,
-    SMART_BRUSH
+    SMART_BRUSH,
+    CAVE_BRUSH
 }

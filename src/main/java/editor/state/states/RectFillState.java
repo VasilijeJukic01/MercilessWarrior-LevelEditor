@@ -71,30 +71,40 @@ public class RectFillState implements State<TabView> {
         int selectedTileId = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_TILE);
         int selectedLayer = (int) tabView.getSettings().getParameter(SettingsKey.SELECTED_LAYER);
         boolean smartBrush = Boolean.TRUE.equals(tabView.getSettings().getParameter(SettingsKey.SMART_BRUSH));
+        boolean caveBrush = Boolean.TRUE.equals(tabView.getSettings().getParameter(SettingsKey.CAVE_BRUSH));
         boolean eraseMode = tabView.getTabKeyListener().isShiftFlag();
 
-        int fMinX = minX, fMaxX = maxX, fMinY = minY, fMaxY = maxY;
-        level.getChildren().removeIf(n -> {
-            if (n instanceof Tile t && t.getX() >= fMinX && t.getX() <= fMaxX && t.getY() >= fMinY && t.getY() <= fMaxY) {
-                return eraseMode || (t.getTileType() == TileType.SOLID && t.getLayer() == selectedLayer);
-            }
-            return false;
-        });
+        if (smartBrush && selectedLayer == 5 && (caveBrush || eraseMode)) {
+            autoTiler.carveLayer5CavernRegion(level, minX, minY, maxX, maxY);
+        }
+        else {
+            int fMinX = minX, fMaxX = maxX, fMinY = minY, fMaxY = maxY;
+            level.getChildren().removeIf(n -> {
+                if (n instanceof Tile t && t.getX() >= fMinX && t.getX() <= fMaxX && t.getY() >= fMinY && t.getY() <= fMaxY) {
+                    return eraseMode || (t.getTileType() == TileType.SOLID && (t.getLayer() == selectedLayer || selectedLayer == 5));
+                }
+                return false;
+            });
 
-        if (!eraseMode) {
-            int green = (selectedLayer == 5) ? 255 : 254;
-            int blue = (selectedLayer == 5) ? 255 : 254;
-            for (int cx = minX; cx <= maxX; cx++) {
-                for (int cy = minY; cy <= maxY; cy++) {
-                    Tile t = new Tile("", level, TileType.SOLID, cx, cy, selectedTileId, green, blue);
-                    t.setLayer(selectedLayer);
-                    level.getChildren().add(t);
+            if (!eraseMode) {
+                int green = (selectedLayer == 5) ? 255 : 254;
+                int blue = (selectedLayer == 5) ? 255 : 254;
+                for (int cx = minX; cx <= maxX; cx++) {
+                    for (int cy = minY; cy <= maxY; cy++) {
+                        Tile t = new Tile("", level, TileType.SOLID, cx, cy, selectedTileId, green, blue);
+                        t.setLayer(selectedLayer);
+                        level.getChildren().add(t);
+                    }
                 }
             }
-        }
 
-        if (smartBrush && selectedLayer == 3) {
-            autoTiler.updateRegionAutoTiles(level, minX - 1, minY - 1, maxX + 1, maxY + 1);
+            if (smartBrush) {
+                if (selectedLayer == 3) {
+                    autoTiler.updateRegionAutoTiles(level, minX - 1, minY - 1, maxX + 1, maxY + 1);
+                } else if (selectedLayer == 5) {
+                    autoTiler.updateLayer5AutoTiles(level, minX - 1, minY - 1, maxX + 1, maxY + 1);
+                }
+            }
         }
 
         Command cmd = new BatchLevelCommand(level, oldChildren, new ArrayList<>(level.getChildren()), w, h);
