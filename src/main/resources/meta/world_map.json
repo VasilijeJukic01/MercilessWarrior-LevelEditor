@@ -1,0 +1,57 @@
+{
+  "startLevel": "begin",
+  "rooms": {
+    "begin": {
+      "exits": [
+        { "trigger": "LOAD_RIGHT_LEVEL", "targetLevel": "forest01", "targetSpawn": "SPAWN_B" }
+      ]
+    },
+    "forest01": {
+      "exits": [
+        { "trigger": "LOAD_LEFT_LEVEL",  "targetLevel": "begin", "targetSpawn": "SPAWN_A" },
+        { "trigger": "LOAD_RIGHT_LEVEL", "targetLevel": "forest02", "targetSpawn": "SPAWN_B" }
+      ]
+    },
+    "forest02": {
+      "exits": [
+        { "trigger": "LOAD_LEFT_LEVEL",  "targetLevel": "forest01", "targetSpawn": "SPAWN_A" },
+        { "trigger": "LOAD_RIGHT_LEVEL", "targetLevel": "forest03", "targetSpawn": "SPAWN_B" },
+        { "trigger": "LOAD_DOWN_LEVEL",  "targetLevel": "forest12", "targetSpawn": "SPAWN_D" }
+      ]
+    },
+    "forest03": {
+      "exits": [
+        { "trigger": "LOAD_LEFT_LEVEL",  "targetLevel": "forest02", "targetSpawn": "SPAWN_A" }
+      ]
+    },
+    "forest10": {
+      "exits": [
+        { "trigger": "LOAD_RIGHT_LEVEL", "targetLevel": "forest11", "targetSpawn": "SPAWN_B" }
+      ]
+    },
+    "forest11": {
+      "exits": [
+        { "trigger": "LOAD_LEFT_LEVEL",  "targetLevel": "forest10", "targetSpawn": "SPAWN_A" },
+        { "trigger": "LOAD_RIGHT_LEVEL", "targetLevel": "forest12", "targetSpawn": "SPAWN_B" }
+      ]
+    },
+    "forest12": {
+      "exits": [
+        { "trigger": "LOAD_UP_LEVEL",    "targetLevel": "forest02", "targetSpawn": "SPAWN_C" },
+        { "trigger": "LOAD_LEFT_LEVEL",  "targetLevel": "forest11", "targetSpawn": "SPAWN_A" },
+        { "trigger": "LOAD_RIGHT_LEVEL", "targetLevel": "forest13", "targetSpawn": "SPAWN_B" }
+      ]
+    },
+    "forest13": {
+      "exits": [
+        { "trigger": "LOAD_LEFT_LEVEL",  "targetLevel": "forest12", "targetSpawn": "SPAWN_A" },
+        { "trigger": "LOAD_DOWN_LEVEL",  "targetLevel": "forest23", "targetSpawn": "SPAWN_D" }
+      ]
+    },
+    "forest23": {
+      "exits": [
+        { "trigger": "LOAD_UP_LEVEL",    "targetLevel": "forest13", "targetSpawn": "SPAWN_C" }
+      ]
+    }
+  }
+}

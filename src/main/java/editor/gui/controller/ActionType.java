@@ -29,5 +29,6 @@ public enum ActionType {
     PASTE,
     GENERATE_LEVEL,
     BUCKET_FILL,
-    RECT_FILL
+    RECT_FILL,
+    WORLD_MAP
 }
