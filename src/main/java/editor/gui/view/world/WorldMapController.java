@@ -540,31 +540,40 @@ public class WorldMapController {
     }
 
     public WorldMapRoomEntry createEntryFromCombinedImage(String id, BufferedImage combined, int mapX, int mapY) {
-        int w = combined.getWidth() / 3;
-        int h = combined.getHeight();
+        int w = combined.getWidth() / 3, h = combined.getHeight();
         BufferedImage panel1 = combined.getSubimage(0, 0, w, h);
         BufferedImage minimapPreview = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         List<WorldMapRoomEntry.TriggerMarker> triggers = new ArrayList<>();
+        List<int[]> pendingIcons = new ArrayList<>();
 
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < h; y++) {
                 Color c1 = new Color(combined.getRGB(x, y));
-                int r = c1.getRed(), g = c1.getGreen(), b = c1.getBlue();
+                Color c2 = new Color(combined.getRGB(w + x, y));
+                int r1 = c1.getRed(), g1 = c1.getGreen(), b1 = c1.getBlue();
 
-                if (b == LvlObjType.TOTEM.ordinal() && r == 254 && g == 254) {
-                    minimapPreview.setRGB(x, y, new Color(254, 254, 1).getRGB());
-                } else if (b == LvlObjType.SHOP.ordinal() && r == 254 && g == 254) {
-                    minimapPreview.setRGB(x, y, new Color(254, 254, 2).getRGB());
-                } else if (b == LvlObjType.BLACKSMITH.ordinal() && r == 254 && g == 254) {
-                    minimapPreview.setRGB(x, y, new Color(254, 254, 3).getRGB());
-                } else if (b == LvlObjType.TABLE.ordinal() && r == 254 && g == 254) {
-                    minimapPreview.setRGB(x, y, new Color(254, 254, 4).getRGB());
-                } else if (g == LvlEnemyType.SPEAR_WOMAN.ordinal() && r == 254 && b == 254) {
-                    minimapPreview.setRGB(x, y, new Color(254, 254, 5).getRGB());
-                } else if (r < 49) {
+                boolean isSolidTerrain = (r1 < 49);
+                boolean isSubterraneanBlackBacking = (c2.getBlue() == 34 && c2.getGreen() <= 5);
+
+                if (isSolidTerrain || isSubterraneanBlackBacking) {
                     minimapPreview.setRGB(x, y, SOLID_COLOR.getRGB());
-                } else {
-                    minimapPreview.setRGB(x, y, WALKABLE_COLOR.getRGB());
+                }
+                else minimapPreview.setRGB(x, y, WALKABLE_COLOR.getRGB());
+
+                if (r1 == 254 && g1 == 254 && b1 == LvlObjType.TOTEM.ordinal()) {
+                    pendingIcons.add(new int[]{x, y, 1});
+                }
+                else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.SHOP.ordinal()) {
+                    pendingIcons.add(new int[]{x + 1, Math.min(h - 1, y + 3), 2});
+                }
+                else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.BLACKSMITH.ordinal()) {
+                    pendingIcons.add(new int[]{x, Math.min(h - 1, y + 1), 3});
+                }
+                else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.TABLE.ordinal()) {
+                    pendingIcons.add(new int[]{x, y, 4});
+                }
+                else if (r1 == 254 && b1 == 254 && g1 == LvlEnemyType.SPEAR_WOMAN.ordinal()) {
+                    pendingIcons.add(new int[]{x, y, 5});
                 }
 
                 Color c3 = new Color(combined.getRGB(w * 2 + x, y));
@@ -572,6 +581,13 @@ public class WorldMapController {
                     triggers.add(new WorldMapRoomEntry.TriggerMarker(x, y, LvlTriggerType.values()[c3.getBlue()]));
                 }
             }
+        }
+
+        for (int[] icon : pendingIcons) {
+            int ix = Math.max(0, Math.min(w - 1, icon[0]));
+            int iy = Math.max(0, Math.min(h - 1, icon[1]));
+            int iconType = icon[2];
+            minimapPreview.setRGB(ix, iy, new Color(254, 254, iconType).getRGB());
         }
 
         return new WorldMapRoomEntry(id, w, h, mapX, mapY, combined, panel1, minimapPreview, triggers);

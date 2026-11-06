@@ -16,7 +16,8 @@ public enum LvlTriggerType {
     SPAWN_D(9, new Color(100, 100, 100, 150), "SPAWN D"),
     TELEPORT_TAVERN(10, new Color(255, 100, 255, 150), "TO TAVERN"),
     TELEPORT_EXIT(11, new Color(255, 100, 255, 150), "TO EXIT"),
-    MAX(12, Color.BLACK, "");
+    CUTSCENE(12, new Color(255, 115, 0, 180), "CUTSCENE"),
+    MAX(13, Color.BLACK, "");
 
     private final int id;
     private final Color color;

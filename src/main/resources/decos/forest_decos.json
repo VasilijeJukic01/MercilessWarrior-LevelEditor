@@ -65,5 +65,11 @@
   { "id": "PLANT13", "wid": 64, "hei": 64, "xOffset": 2, "yOffset": 8 },
   { "id": "CRYSTAL1", "wid": 64, "hei": 64, "xOffset": 2, "yOffset": 8 },
   { "id": "CRYSTAL2", "wid": 64, "hei": 64, "xOffset": 2, "yOffset": 8 },
-  { "id": "TAVERN_BUILDING", "wid": 384, "hei": 256, "xOffset": 0, "yOffset": 8 }
+  { "id": "TAVERN_BUILDING", "wid": 384, "hei": 256, "xOffset": 0, "yOffset": 8 },
+  { "id": "LODGE1_BUILDING", "wid": 384, "hei": 256, "xOffset": 0, "yOffset": 8 },
+  { "id": "LODGE2_BUILDING", "wid": 384, "hei": 256, "xOffset": 0, "yOffset": 8 },
+  { "id": "LODGE3_BUILDING", "wid": 384, "hei": 256, "xOffset": 0, "yOffset": 8 },
+  { "id": "TENT_BUILDING", "wid": 384, "hei": 256, "xOffset": 0, "yOffset": 15 },
+  { "id": "WELL", "wid": 128, "hei": 128, "xOffset": 0, "yOffset": 10 },
+  { "id": "ALTAIR", "wid": 256, "hei": 256, "xOffset": 0, "yOffset": 12 }
 ]
