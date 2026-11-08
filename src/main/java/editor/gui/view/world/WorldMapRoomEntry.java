@@ -26,11 +26,12 @@ public class WorldMapRoomEntry {
 
     private final BufferedImage combinedImage;
     private final BufferedImage panel1Image;
-    private final BufferedImage minimapPreview;
+    private BufferedImage minimapPreview;
     private final List<TriggerMarker> triggers;
     private List<RoomExitMetadata> exits = new ArrayList<>();
 
     private File sourceImageFile;
+    private File metaFile;
     private LevelMetadata levelMetadata;
     private Level projectLevel;
 
@@ -90,6 +91,10 @@ public class WorldMapRoomEntry {
         return minimapPreview;
     }
 
+    public void setMinimapPreview(BufferedImage minimapPreview) {
+        this.minimapPreview = minimapPreview;
+    }
+
     public List<TriggerMarker> getTriggers() {
         return triggers;
     }
@@ -108,6 +113,14 @@ public class WorldMapRoomEntry {
 
     public void setSourceImageFile(File sourceImageFile) {
         this.sourceImageFile = sourceImageFile;
+    }
+
+    public File getMetaFile() {
+        return metaFile;
+    }
+
+    public void setMetaFile(File metaFile) {
+        this.metaFile = metaFile;
     }
 
     public LevelMetadata getLevelMetadata() {
