@@ -52,6 +52,7 @@ public class LevelLoader implements Loader {
             getTriggerData(levelImg, level, panelWidth);
 
             if (metadata != null) {
+                level.setMetadata(metadata);
                 applyMetadata(level, metadata);
                 Framework.getInstance().log("Successfully applied metadata for " + name, LogType.INFORMATION);
             }

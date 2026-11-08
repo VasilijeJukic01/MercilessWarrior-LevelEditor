@@ -118,20 +118,35 @@ public class ExportLevelAction extends AbstractEditorAction {
         return pixelImage;
     }
 
-    private static void saveMetadataAsJson(Level level, File targetFile) {
-        LevelMetadata levelMetadata = new LevelMetadata();
+    /**
+     * Saves or updates a level's companion .json metadata file, preserving any existing rules while updating env properties and decoration transforms.
+     */
+    public static void saveMetadataAsJson(Level level, File targetFile) {
+        LevelMetadata levelMetadata = (level.getMetadata() != null) ? level.getMetadata() : new LevelMetadata();
 
         if (targetFile.exists()) {
             try (FileReader reader = new FileReader(targetFile)) {
                 LevelMetadata existing = new Gson().fromJson(reader, LevelMetadata.class);
                 if (existing != null) {
+                    if (level.getMetadata() != null) {
+                        if (level.getMetadata().getBiome() != null) existing.setBiome(level.getMetadata().getBiome());
+                        if (level.getMetadata().getBackgroundId() != null) existing.setBackgroundId(level.getMetadata().getBackgroundId());
+                        if (level.getMetadata().getTileset() != null) existing.setTileset(level.getMetadata().getTileset());
+                        if (level.getMetadata().getAmbientParticlesEnabled() != null) {
+                            existing.setAmbientParticlesEnabled(level.getMetadata().getAmbientParticlesEnabled());
+                        }
+                    }
                     levelMetadata = existing;
-                    levelMetadata.getDecorations().clear();
                 }
             } catch (Exception ex) {
                 Framework.getInstance().log("Failed to read existing metadata: " + ex.getMessage(), LogType.WARNING);
             }
         }
+
+        if (levelMetadata.getDecorations() == null) {
+            levelMetadata.setDecorations(new java.util.ArrayList<>());
+        }
+        else levelMetadata.getDecorations().clear();
 
         for (Node child : level.getChildren()) {
             Tile tile = (Tile) child;
@@ -147,12 +162,38 @@ public class ExportLevelAction extends AbstractEditorAction {
             }
         }
 
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        try (FileWriter writer = new FileWriter(targetFile)) {
-            gson.toJson(levelMetadata, writer);
-            Framework.getInstance().log("Metadata saved to " + targetFile.getAbsolutePath(), LogType.NOTIFICATION);
+        saveRoomMetadataFile(levelMetadata, targetFile);
+    }
+
+    /**
+     * Writes a LevelMetadata instance directly to a .json file, merging with any existing lights/npcs/objects/decorations on disk.
+     */
+    public static void saveRoomMetadataFile(LevelMetadata metaToSave, File targetFile) {
+        if (metaToSave == null || targetFile == null) return;
+        try {
+            if (targetFile.getParentFile() != null && !targetFile.getParentFile().exists()) {
+                targetFile.getParentFile().mkdirs();
+            }
+            if (targetFile.exists()) {
+                try (FileReader reader = new FileReader(targetFile)) {
+                    LevelMetadata onDisk = new Gson().fromJson(reader, LevelMetadata.class);
+                    if (onDisk != null) {
+                        if (metaToSave.getLights() == null) metaToSave.setLights(onDisk.getLights());
+                        if (metaToSave.getNpcs() == null) metaToSave.setNpcs(onDisk.getNpcs());
+                        if (metaToSave.getObjects() == null) metaToSave.setObjects(onDisk.getObjects());
+                        if (metaToSave.getClearEnemiesFlag() == null) metaToSave.setClearEnemiesFlag(onDisk.getClearEnemiesFlag());
+                        if (metaToSave.getDecorations() == null || metaToSave.getDecorations().isEmpty()) {
+                            metaToSave.setDecorations(onDisk.getDecorations());
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            try (FileWriter writer = new FileWriter(targetFile)) {
+                gson.toJson(metaToSave, writer);
+            }
         } catch (Exception ex) {
-            Framework.getInstance().log("Failed to save metadata JSON: " + ex.getMessage(), LogType.ERROR);
+            Framework.getInstance().log("Failed to save metadata JSON (" + targetFile.getName() + "): " + ex.getMessage(), LogType.ERROR);
         }
     }
 }

@@ -1,6 +1,8 @@
 package editor.gui.view.world;
 
+import editor.core.Framework;
 import editor.gui.view.style.CustomButton;
+import editor.model.metadata.LevelMetadata;
 import editor.model.metadata.RoomExitMetadata;
 import editor.model.repository.components.Level;
 import editor.model.repository.components.Project;
@@ -9,6 +11,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +24,13 @@ import static editor.constants.Constants.*;
  */
 public class WorldMapDialog extends JDialog {
 
+    private static final String[] BACKGROUND_IDS = {
+            "FOREST1", "FOREST2", "FOREST3", "FOREST4",
+            "FOREST_ENTRANCE", "FOREST_ROOTS", "FOREST_DEEP",
+            "FOREST_STORM_PEAK", "FOREST_VILLAGE", "FOREST_VILLAGE_ENTRANCE",
+            "FOREST_THORNS", "RORIC_ARENA", "TAVERN"
+    };
+
     private final WorldMapController controller;
     private final WorldMapCanvas canvas;
 
@@ -28,6 +38,13 @@ public class WorldMapDialog extends JDialog {
     private final JLabel lbSelectedRoomInfo = new JLabel("Select a room on the canvas");
     private final JSpinner spRoomX = new JSpinner(new SpinnerNumberModel(0, -500, 2000, 1));
     private final JSpinner spRoomY = new JSpinner(new SpinnerNumberModel(0, -500, 2000, 1));
+
+    // Room Environment & Biome Metadata Controls
+    private final JComboBox<String> cbBiome;
+    private final JComboBox<String> cbBackgroundId;
+    private final JComboBox<String> cbTileset;
+    private final JCheckBox chkAmbientParticles = new JCheckBox("Enable Ambient Particles", true);
+
     private final JLabel lbGapInfo = new JLabel("Shift+Drag on canvas to measure a gap");
     private final DefaultTableModel exitsTableModel;
     private final JTable exitsTable;
@@ -37,6 +54,15 @@ public class WorldMapDialog extends JDialog {
         super(owner, "World Map & Routing Assembler", true);
         this.controller = new WorldMapController(activeProject);
         this.tfStartLevel.setText(controller.getStartLevelId());
+
+        String[] biomes = controller.getMinimapGenerator().getAvailableBiomes().toArray(new String[0]);
+        this.cbBiome = new JComboBox<>(biomes);
+        this.cbBackgroundId = new JComboBox<>(BACKGROUND_IDS);
+        this.cbBackgroundId.setEditable(true);
+
+        String[] tilesets = Framework.getInstance().getStorage().getTilesetNames();
+        this.cbTileset = new JComboBox<>(tilesets.length > 0 ? tilesets : new String[]{"Forest", "Invisible"});
+        this.cbTileset.setEditable(true);
 
         this.exitsTableModel = new DefaultTableModel(
                 new Object[]{"Trigger", "Target Room", "Spawn", "minX", "maxX", "minY", "maxY"}, 0
@@ -52,7 +78,7 @@ public class WorldMapDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(1320, 780);
+        setSize(1340, 800);
         setLocationRelativeTo(getOwner());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -60,7 +86,7 @@ public class WorldMapDialog extends JDialog {
         add(createTopToolbar(), BorderLayout.NORTH);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, canvas, createInspectorPanel());
-        splitPane.setResizeWeight(0.68);
+        splitPane.setResizeWeight(0.66);
         splitPane.setDividerLocation(860);
         add(splitPane, BorderLayout.CENTER);
 
@@ -106,7 +132,6 @@ public class WorldMapDialog extends JDialog {
         return bar;
     }
 
-
     private JPanel createInspectorPanel() {
         JPanel panel = new JPanel(new BorderLayout(8, 10));
         panel.setBackground(EXPLORER_COLOR);
@@ -132,17 +157,42 @@ public class WorldMapDialog extends JDialog {
         roomCard.add(lbSelectedRoomInfo, gbc);
 
         gbc.gridwidth = 1; gbc.gridy = 1;
-        gbc.gridx = 0;
-        JLabel lx = new JLabel("mapX:"); lx.setForeground(Color.WHITE);
-        roomCard.add(lx, gbc);
+        gbc.gridx = 0; gbc.weightx = 0;
+        roomCard.add(createWhiteLabel("mapX:"), gbc);
         gbc.gridx = 1; gbc.weightx = 0.5;
         roomCard.add(spRoomX, gbc);
 
         gbc.gridx = 2; gbc.weightx = 0;
-        JLabel ly = new JLabel("mapY:"); ly.setForeground(Color.WHITE);
-        roomCard.add(ly, gbc);
+        roomCard.add(createWhiteLabel("mapY:"), gbc);
         gbc.gridx = 3; gbc.weightx = 0.5;
         roomCard.add(spRoomY, gbc);
+
+        // Biome & Tileset row
+        gbc.gridy = 2;
+        gbc.gridx = 0; gbc.weightx = 0;
+        roomCard.add(createWhiteLabel("Biome:"), gbc);
+        gbc.gridx = 1; gbc.weightx = 0.5;
+        roomCard.add(cbBiome, gbc);
+
+        gbc.gridx = 2; gbc.weightx = 0;
+        roomCard.add(createWhiteLabel("Tileset:"), gbc);
+        gbc.gridx = 3; gbc.weightx = 0.5;
+        roomCard.add(cbTileset, gbc);
+
+        // Background ID row
+        gbc.gridy = 3;
+        gbc.gridx = 0; gbc.weightx = 0;
+        roomCard.add(createWhiteLabel("Background:"), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 3; gbc.weightx = 1.0;
+        roomCard.add(cbBackgroundId, gbc);
+
+        // Ambient Particles checkbox row
+        chkAmbientParticles.setOpaque(false);
+        chkAmbientParticles.setForeground(Color.WHITE);
+        chkAmbientParticles.setFocusPainted(false);
+        gbc.gridy = 4;
+        gbc.gridx = 0; gbc.gridwidth = 4;
+        roomCard.add(chkAmbientParticles, gbc);
 
         spRoomX.addChangeListener(e -> {
             if (!suppressEvents && controller.getSelectedRoom() != null) {
@@ -156,6 +206,21 @@ public class WorldMapDialog extends JDialog {
                 canvas.repaint();
             }
         });
+
+        ActionListener envListener = e -> {
+            if (!suppressEvents && controller.getSelectedRoom() != null) {
+                String biome = Objects.toString(cbBiome.getSelectedItem(), "FOREST").trim();
+                String bg = Objects.toString(cbBackgroundId.getSelectedItem(), "FOREST1").trim();
+                String tileset = Objects.toString(cbTileset.getSelectedItem(), "Forest").trim();
+                boolean particles = chkAmbientParticles.isSelected();
+                controller.updateSelectedRoomEnvironment(biome, bg, tileset, particles);
+                canvas.repaint();
+            }
+        };
+        cbBiome.addActionListener(envListener);
+        cbBackgroundId.addActionListener(envListener);
+        cbTileset.addActionListener(envListener);
+        chkAmbientParticles.addActionListener(envListener);
 
         topCards.add(roomCard);
         topCards.add(Box.createVerticalStrut(10));
@@ -212,6 +277,12 @@ public class WorldMapDialog extends JDialog {
         return panel;
     }
 
+    private JLabel createWhiteLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setForeground(Color.WHITE);
+        return label;
+    }
+
     private JPanel createFooter() {
         JPanel footer = new JPanel(new BorderLayout());
         footer.setBackground(TOOLBAR_COLOR);
@@ -225,7 +296,7 @@ public class WorldMapDialog extends JDialog {
         JPanel rightBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         rightBtns.setOpaque(false);
 
-        JButton btnExport = createFlatButton("Export minimap.png & world_map.json...");
+        JButton btnExport = createFlatButton("Export minimap.png, world_map.json & room metadata...");
         btnExport.setBackground(new Color(39, 174, 96));
         btnExport.addActionListener(e -> onExport());
 
@@ -237,46 +308,6 @@ public class WorldMapDialog extends JDialog {
         rightBtns.add(btnClose);
         footer.add(rightBtns, BorderLayout.EAST);
         return footer;
-    }
-
-    private void onLoadFolder() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select Directory Containing Level PNGs");
-        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            controller.loadLevelsFromDirectory(chooser.getSelectedFile());
-            syncInspectorFromController();
-            canvas.repaint();
-        }
-    }
-
-    private void onLoadJson() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select world_map.json");
-        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            try {
-                controller.loadWorldMapJson(chooser.getSelectedFile());
-                tfStartLevel.setText(controller.getStartLevelId());
-                syncInspectorFromController();
-                canvas.repaint();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Failed to read world_map.json:\n" + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-
-    private void onAutoAlign() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select Existing minimap.png");
-        if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            try {
-                controller.autoAlignFromMinimapPng(chooser.getSelectedFile());
-                syncInspectorFromController();
-                canvas.repaint();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Failed to align from minimap.png:\n" + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
     }
 
     private void onCreateLevelInGap() {
@@ -314,7 +345,6 @@ public class WorldMapDialog extends JDialog {
         }
     }
 
-
     private void onExport() {
         if (controller.getRooms().isEmpty()) return;
 
@@ -346,7 +376,7 @@ public class WorldMapDialog extends JDialog {
             syncInspectorFromController();
             canvas.repaint();
             JOptionPane.showMessageDialog(this,
-                    "Successfully saved directly to:\n1. " + minimapFile.getAbsolutePath() + "\n2. " + jsonFile.getAbsolutePath(),
+                    "Successfully saved:\n1. " + minimapFile.getAbsolutePath() + "\n2. " + jsonFile.getAbsolutePath() + "\n3. Room metadata JSONs in meta/",
                     "Export Complete", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Export failed:\n" + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -361,6 +391,13 @@ public class WorldMapDialog extends JDialog {
             lbSelectedRoomInfo.setText(String.format("Room: %s  (%dx%d tiles)", selected.getId(), selected.getWidth(), selected.getHeight()));
             spRoomX.setValue(selected.getMapX());
             spRoomY.setValue(selected.getMapY());
+
+            LevelMetadata meta = selected.getLevelMetadata();
+            cbBiome.setSelectedItem((meta != null && meta.getBiome() != null) ? meta.getBiome().toUpperCase() : "FOREST");
+            cbBackgroundId.setSelectedItem((meta != null && meta.getBackgroundId() != null) ? meta.getBackgroundId() : "FOREST1");
+            cbTileset.setSelectedItem((meta != null && meta.getTileset() != null) ? meta.getTileset() : "Forest");
+            chkAmbientParticles.setSelected(meta == null || meta.getAmbientParticlesEnabled() == null || meta.getAmbientParticlesEnabled());
+
             for (RoomExitMetadata ex : selected.getExits()) {
                 exitsTableModel.addRow(new Object[]{
                         ex.getTrigger(),

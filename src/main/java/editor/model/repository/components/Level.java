@@ -1,5 +1,6 @@
 package editor.model.repository.components;
 
+import editor.model.metadata.LevelMetadata;
 import editor.model.repository.Node;
 import editor.model.repository.Composite;
 import editor.model.repository.nodeObserver.NodePublisher;
@@ -11,6 +12,7 @@ import java.util.Optional;
 
 public class Level extends Composite<Node> implements NodePublisher {
 
+    private LevelMetadata metadata = new LevelMetadata();
     private int width, height;
 
     private transient List<NodeSubscriber> subscribers;
@@ -89,6 +91,15 @@ public class Level extends Composite<Node> implements NodePublisher {
 
     public int getHeight() {
         return height;
+    }
+
+    public LevelMetadata getMetadata() {
+        if (metadata == null) metadata = new LevelMetadata();
+        return metadata;
+    }
+
+    public void setMetadata(LevelMetadata metadata) {
+        this.metadata = (metadata != null) ? metadata : new LevelMetadata();
     }
 
     public void setSize(int width, int height) {

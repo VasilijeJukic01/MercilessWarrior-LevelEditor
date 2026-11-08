@@ -64,7 +64,7 @@ public class WorldMapController {
                 int my = (existing != null) ? existing.getMapY() : 0;
 
                 BufferedImage combined = ExportLevelAction.buildExportImage(lvl, "Both");
-                LevelMetadata meta = (existing != null) ? existing.getLevelMetadata() : null;
+                LevelMetadata meta = (existing != null && existing.getLevelMetadata() != null) ? existing.getLevelMetadata() : lvl.getMetadata();
                 WorldMapRoomEntry entry = minimapGenerator.createEntryFromCombinedImage(lvl.getName(), combined, mx, my, meta);
                 entry.setProjectLevel(lvl);
                 if (existing != null) {
@@ -231,8 +231,42 @@ public class WorldMapController {
             gson.toJson(worldMeta, writer);
         }
 
-        Framework.getInstance().log("Exported minimap.png (" + minimapOut.getWidth() + "x" + minimapOut.getHeight() + ") and world_map.json!", LogType.NOTIFICATION);
+        File metaDir = jsonFile.getParentFile();
+        for (WorldMapRoomEntry r : rooms.values()) {
+            if (WorldMapTabBridge.PREVIEW_LEVEL_NAME.equals(r.getId())) continue;
+            File roomMetaFile = r.getMetaFile();
+            if (roomMetaFile == null && metaDir != null) {
+                roomMetaFile = new File(metaDir, r.getId() + ".json");
+                r.setMetaFile(roomMetaFile);
+            }
+            if (roomMetaFile != null && r.getLevelMetadata() != null) {
+                ExportLevelAction.saveRoomMetadataFile(r.getLevelMetadata(), roomMetaFile);
+            }
+        }
+
+        Framework.getInstance().log("Exported minimap.png, world_map.json, and room metadata JSONs!", LogType.NOTIFICATION);
         return new Dimension(minimapOut.getWidth(), minimapOut.getHeight());
+    }
+
+    /**
+     * Updates the selected room's env metadata and immediately re-renders its minimap preview on the map canvas using the new biome palette.
+     */
+    public void updateSelectedRoomEnvironment(String biome, String backgroundId, String tileset, boolean ambientParticles) {
+        if (selectedRoom == null) return;
+        LevelMetadata meta = selectedRoom.getLevelMetadata();
+        if (meta == null) {
+            meta = new LevelMetadata();
+            selectedRoom.setLevelMetadata(meta);
+        }
+
+        String oldBiome = meta.getBiome();
+        meta.setBiome(biome);
+        meta.setBackgroundId(backgroundId);
+        meta.setTileset(tileset);
+        meta.setAmbientParticlesEnabled(ambientParticles);
+
+        if (selectedRoom.getProjectLevel() != null) selectedRoom.getProjectLevel().setMetadata(meta);
+        if (!Objects.equals(oldBiome, biome)) minimapGenerator.rebuildMinimapPreview(selectedRoom);
     }
 
     /**
