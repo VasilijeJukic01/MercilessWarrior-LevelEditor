@@ -1,12 +1,13 @@
 package editor.generator;
 
+import editor.generator.strategy.ExitSide;
+
 import java.awt.*;
 import java.util.*;
 import java.util.List;
 
 /**
- * Validates and repairs generated terrain grids so that all chambers are connected
- * and a valid platforming jump path exists from the left entrance to the right exit.
+ * Validates and repairs generated terrain grids so that all chambers are connected and a valid platforming jump path exists between all selected room exits.
  */
 public class PlayabilityValidator {
 
@@ -15,44 +16,162 @@ public class PlayabilityValidator {
     private static final int MIN_HEADROOM = 3;
 
     /**
-     * Enforces outer boundaries, connects isolated chambers, clears headroom, and constructs stepping platforms over unclimbable cliffs.
+     * Enforces outer boundaries for unselected sides, carves tunnels for selected {@link ExitSide}s, connects isolated chambers, clears headroom, and constructs stepping platforms over unclimbable cliffs.
      *
      * @param solid The 2D solid occupancy grid to validate and modify in place.
      * @param w     Grid width in tiles.
      * @param h     Grid height in tiles.
+     * @param exits The set of cardinal sides that should have open exit tunnels.
      */
-    public void ensurePlayable(boolean[][] solid, int w, int h) {
-        enforceTopAndBottomShell(solid, w, h);
+    public void ensurePlayable(boolean[][] solid, int w, int h, Set<ExitSide> exits) {
+        if (exits == null || exits.isEmpty()) {
+            exits = EnumSet.of(ExitSide.LEFT, ExitSide.RIGHT);
+        }
+        enforceOuterShellAndSelectedExits(solid, w, h, exits);
         connectAllAirChambers(solid, w, h);
         ensureHeadroom(solid, w, h);
         removeStackedPlatformBlockers(solid, w, h);
-        guaranteeJumpPathFromStartToExit(solid, w, h);
+        guaranteeJumpPathBetweenExits(solid, w, h, exits);
     }
 
-    private void enforceTopAndBottomShell(boolean[][] solid, int w, int h) {
+    /**
+     * Overload preserving backward compatibility (defaults to LEFT and RIGHT exits).
+     */
+    public void ensurePlayable(boolean[][] solid, int w, int h) {
+        ensurePlayable(solid, w, h, EnumSet.of(ExitSide.LEFT, ExitSide.RIGHT));
+    }
+
+    /**
+     * Seals all 4 outer borders (3 tiles thick) for sides not in {@code exits}, and carves clean entrance/exit tunnels + climbing ledges for sides in {@code exits}.
+     */
+    public void enforceOuterShellAndSelectedExits(boolean[][] solid, int w, int h, Set<ExitSide> exits) {
+        if (!exits.contains(ExitSide.LEFT)) {
+            for (int x = 0; x < 3; x++) {
+                for (int y = 0; y < h; y++) solid[x][y] = true;
+            }
+        }
+        if (!exits.contains(ExitSide.RIGHT)) {
+            for (int x = w - 3; x < w; x++) {
+                for (int y = 0; y < h; y++) solid[x][y] = true;
+            }
+        }
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < 3; y++) solid[x][y] = true;
             for (int y = h - 3; y < h; y++) solid[x][y] = true;
         }
+
+        if (exits.contains(ExitSide.LEFT)) {
+            int floorY = findExistingSideFloorY(solid, 4, h);
+            for (int x = 0; x <= 5; x++) {
+                for (int y = Math.max(3, floorY - 3); y <= floorY; y++) solid[x][y] = false;
+                if (floorY + 1 < h) solid[x][floorY + 1] = true;
+            }
+        }
+        if (exits.contains(ExitSide.RIGHT)) {
+            int floorY = findExistingSideFloorY(solid, w - 5, h);
+            for (int x = w - 6; x < w; x++) {
+                for (int y = Math.max(3, floorY - 3); y <= floorY; y++) solid[x][y] = false;
+                if (floorY + 1 < h) solid[x][floorY + 1] = true;
+            }
+        }
+
+        int topShaftX = w / 2 - 2;
+        if (exits.contains(ExitSide.TOP)) {
+            int targetY = findHighestInteriorAirY(solid, topShaftX, w, h);
+            for (int x = topShaftX; x < topShaftX + 5; x++) {
+                for (int y = 0; y <= targetY + 2; y++) {
+                    if (x >= 3 && x < w - 3 && y < h - 3) solid[x][y] = false;
+                }
+            }
+
+            boolean leftSide = true;
+            for (int py = targetY + 1; py >= 3; py -= 3) {
+                int px = leftSide ? topShaftX : (topShaftX + 3);
+                solid[px][py] = true;
+                solid[px + 1][py] = true;
+                leftSide = !leftSide;
+            }
+        }
+
+        if (exits.contains(ExitSide.BOTTOM)) {
+            int botShaftX = exits.contains(ExitSide.TOP) ? Math.max(6, Math.min(w - 11, topShaftX + 6)) : (w / 2 - 2);
+            int startY = findLowestInteriorAirY(solid, botShaftX, w, h);
+            for (int x = botShaftX; x < botShaftX + 5; x++) {
+                for (int y = startY; y < h; y++) {
+                    if (x >= 3 && x < w - 3 && y >= 3) solid[x][y] = false;
+                }
+            }
+
+            int ledgeY = h - 4;
+            for (int x = Math.max(3, botShaftX - 3); x < botShaftX; x++) {
+                solid[x][ledgeY + 1] = true;
+                solid[x][ledgeY] = false;
+                solid[x][ledgeY - 1] = false;
+                solid[x][ledgeY - 2] = false;
+            }
+        }
     }
 
-    /**
-     * Iteratively computes the set of standable tiles reachable via platformer jumps from the left entrance,
-     * placing staggered bridge platforms toward unreachable targets until full traversal is possible.
-     */
-    private void guaranteeJumpPathFromStartToExit(boolean[][] solid, int w, int h) {
-        Point start = findTunnelStandable(solid, 2, h);
-        Point exit = findTunnelStandable(solid, w - 3, h);
-        if (start == null || exit == null) return;
+    private int findExistingSideFloorY(boolean[][] solid, int probeX, int h) {
+        for (int y = 5; y < h - 3; y++) {
+            if (!solid[probeX][y] && solid[probeX][y + 1]) return y;
+        }
+        return h - 5;
+    }
 
+    private int findHighestInteriorAirY(boolean[][] solid, int shaftX, int w, int h) {
+        for (int y = 3; y < h - 4; y++) {
+            for (int x = Math.max(3, shaftX); x < Math.min(w - 3, shaftX + 5); x++) {
+                if (!solid[x][y]) return y;
+            }
+        }
+        return 6;
+    }
+
+    private int findLowestInteriorAirY(boolean[][] solid, int shaftX, int w, int h) {
+        for (int y = h - 4; y >= 4; y--) {
+            for (int x = Math.max(3, shaftX); x < Math.min(w - 3, shaftX + 5); x++) {
+                if (!solid[x][y]) return y;
+            }
+        }
+        return h - 7;
+    }
+
+    private void guaranteeJumpPathBetweenExits(boolean[][] solid, int w, int h, Set<ExitSide> exits) {
+        List<Point> exitPoints = new ArrayList<>();
+        if (exits.contains(ExitSide.LEFT)) {
+            Point p = findTunnelStandable(solid, 2, h);
+            if (p != null) exitPoints.add(p);
+        }
+        if (exits.contains(ExitSide.RIGHT)) {
+            Point p = findTunnelStandable(solid, w - 3, h);
+            if (p != null) exitPoints.add(p);
+        }
+        if (exits.contains(ExitSide.TOP)) {
+            Point p = findTopExitStandable(solid, w, h);
+            if (p != null) exitPoints.add(p);
+        }
+        if (exits.contains(ExitSide.BOTTOM)) {
+            Point p = findBottomExitStandable(solid, w, h);
+            if (p != null) exitPoints.add(p);
+        }
+
+        List<Point> allStandables = findAllStandableTiles(solid, w, h);
+        if (allStandables.isEmpty()) return;
+
+        Point start = !exitPoints.isEmpty() ? exitPoints.get(0) : allStandables.get(0);
         for (int repairIter = 0; repairIter < 25; repairIter++) {
-            List<Point> allStandables = findAllStandableTiles(solid, w, h);
+            allStandables = findAllStandableTiles(solid, w, h);
             Set<Point> reachable = computeJumpReachableSet(solid, start, allStandables, w, h);
 
             Point target = null;
-            if (!reachable.contains(exit)) {
-                target = exit;
-            } else {
+            for (Point ep : exitPoints) {
+                if (!reachable.contains(ep)) {
+                    target = ep;
+                    break;
+                }
+            }
+            if (target == null) {
                 for (Point p : allStandables) {
                     if (!reachable.contains(p) && p.x > 4 && p.x < w - 5) {
                         target = p;
@@ -77,6 +196,31 @@ public class PlayabilityValidator {
                 break;
             }
         }
+    }
+
+    private Point findTopExitStandable(boolean[][] solid, int w, int h) {
+        for (int y = 2; y < Math.min(h - 2, 8); y++) {
+            for (int x = 3; x < w - 3; x++) {
+                if (!solid[x][0] && !solid[x][y] && solid[x][y + 1]) {
+                    return new Point(x, y);
+                }
+            }
+        }
+        return null;
+    }
+
+    private Point findBottomExitStandable(boolean[][] solid, int w, int h) {
+        for (int x = 3; x < w - 3; x++) {
+            if (!solid[x][h - 1]) {
+                for (int dx = -3; dx <= 3; dx++) {
+                    int lx = x + dx;
+                    if (lx >= 3 && lx < w - 3 && !solid[lx][h - 4] && solid[lx][h - 3]) {
+                        return new Point(lx, h - 4);
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private boolean placeBridgePlatform(boolean[][] solid, Point from, Point target, int w, int h) {

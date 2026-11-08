@@ -8,6 +8,7 @@ import editor.command.Command;
 import editor.command.commands.BatchLevelCommand;
 import editor.command.commands.RegionPatchCommand;
 import editor.core.Framework;
+import editor.generator.strategy.ExitSide;
 import editor.generator.strategy.RoomArchetype;
 import editor.logger.LogType;
 import editor.model.loader.LvlEnemyType;
@@ -44,25 +45,26 @@ public class LevelGeneratorFacade {
      * @param enemyDensity Enemy and object density in the range {@code [0.0, 1.0]}.
      * @param decoDensity  Decoration density in the range {@code [0.0, 1.0]}.
      */
-    public void generateProcedural(Level level, int w, int h, RoomArchetype archetype, double enemyDensity, double decoDensity) {
+    public void generateProcedural(Level level, int w, int h, RoomArchetype archetype, double enemyDensity, double decoDensity, Set<ExitSide> exits) {
         boolean[][] solid = new boolean[w][h];
         for (int x = 0; x < w; x++) Arrays.fill(solid[x], true);
 
         List<Node> newNodes = new ArrayList<>();
         archetype.getStrategy().carve(level, solid, newNodes, w, h, rand);
         if (archetype != RoomArchetype.SMASH_GAUNTLET) {
-            validator.ensurePlayable(solid, w, h);
+            validator.ensurePlayable(solid, w, h, exits);
         }
+        else validator.enforceOuterShellAndSelectedExits(solid, w, h, exits);
 
         newNodes.addAll(tileEngine.generateSolidTiles(level, solid, w, h));
         tileEngine.generateWallPockets(level, solid, w, h, newNodes);
-        newNodes.addAll(generateSpawnsAndTriggers(level, solid, w, h));
+        newNodes.addAll(generateSpawnsAndTriggers(level, solid, w, h, exits));
         if (archetype != RoomArchetype.SMASH_GAUNTLET) {
             newNodes.addAll(generateEntitiesAndObjects(level, solid, w, h, enemyDensity));
         }
         newNodes.addAll(decoEngine.generateDecorations(level, solid, newNodes, w, h, decoDensity));
 
-        executeBatchCommand(level, newNodes, w, h, "Generated " + archetype);
+        executeBatchCommand(level, newNodes, w, h, "Generated " + archetype + " with exits " + exits);
     }
 
     /**
@@ -121,7 +123,7 @@ public class LevelGeneratorFacade {
     /**
      * Parses a JSON blueprint or ASCII grid, validates jump reachability, and applies auto-tiling and decorations.
      */
-    public void applyAsciiToLevel(Level level, int w, int h, String aiOutput, double decoDensity) {
+    public void applyAsciiToLevel(Level level, int w, int h, String aiOutput, double decoDensity, Set<ExitSide> exits) {
         String cleaned = aiOutput.replace("```json", "").replace("```", "").trim();
 
         boolean[][] solid = new boolean[w][h];
@@ -162,7 +164,7 @@ public class LevelGeneratorFacade {
             }
 
             carveBorderTunnels(solid, w, h);
-            validator.ensurePlayable(solid, w, h);
+            validator.ensurePlayable(solid, w, h, exits);
 
             if (root.has("items")) {
                 Set<String> occupied = new HashSet<>();
@@ -215,7 +217,7 @@ public class LevelGeneratorFacade {
 
         List<Node> newNodes = new ArrayList<>(tileEngine.generateSolidTiles(level, solid, w, h));
         tileEngine.generateWallPockets(level, solid, w, h, newNodes);
-        newNodes.addAll(generateSpawnsAndTriggers(level, solid, w, h));
+        newNodes.addAll(generateSpawnsAndTriggers(level, solid, w, h, exits));
         newNodes.addAll(extraNodes);
         newNodes.addAll(decoEngine.generateDecorations(level, solid, newNodes, w, h, decoDensity));
 
@@ -899,20 +901,60 @@ public class LevelGeneratorFacade {
         return true;
     }
 
-    private List<Node> generateSpawnsAndTriggers(Level parent, boolean[][] solid, int w, int h) {
+    /**
+     * Places LOAD_*_LEVEL triggers and SPAWN_A..D points for each selected {@link ExitSide}.
+     */
+    private List<Node> generateSpawnsAndTriggers(Level parent, boolean[][] solid, int w, int h, Set<ExitSide> exits) {
         List<Node> list = new ArrayList<>();
-        for (int y = 1; y < h - 1; y++) {
-            if (!solid[0][y] && solid[0][y + 1]) {
-                list.add(createTrigger(parent, 0, y, LvlTriggerType.LOAD_LEFT_LEVEL.ordinal()));
-                list.add(createTrigger(parent, 2, y, LvlTriggerType.SPAWN_A.ordinal()));
-                break;
+        if (exits == null) exits = EnumSet.of(ExitSide.LEFT, ExitSide.RIGHT);
+
+        if (exits.contains(ExitSide.LEFT)) {
+            for (int y = 1; y < h - 1; y++) {
+                if (!solid[0][y] && solid[0][y + 1]) {
+                    list.add(createTrigger(parent, 0, y, LvlTriggerType.LOAD_LEFT_LEVEL.ordinal()));
+                    list.add(createTrigger(parent, 2, y, LvlTriggerType.SPAWN_A.ordinal()));
+                    break;
+                }
             }
         }
-        for (int y = 1; y < h - 1; y++) {
-            if (!solid[w - 1][y] && solid[w - 1][y + 1]) {
-                list.add(createTrigger(parent, w - 1, y, LvlTriggerType.LOAD_RIGHT_LEVEL.ordinal()));
-                list.add(createTrigger(parent, w - 3, y, LvlTriggerType.SPAWN_B.ordinal()));
-                break;
+        if (exits.contains(ExitSide.RIGHT)) {
+            for (int y = 1; y < h - 1; y++) {
+                if (!solid[w - 1][y] && solid[w - 1][y + 1]) {
+                    list.add(createTrigger(parent, w - 1, y, LvlTriggerType.LOAD_RIGHT_LEVEL.ordinal()));
+                    list.add(createTrigger(parent, w - 3, y, LvlTriggerType.SPAWN_B.ordinal()));
+                    break;
+                }
+            }
+        }
+        if (exits.contains(ExitSide.TOP)) {
+            for (int x = 3; x < w - 3; x++) {
+                if (!solid[x][0]) {
+                    list.add(createTrigger(parent, x, 0, LvlTriggerType.LOAD_UP_LEVEL.ordinal()));
+                }
+            }
+            boolean placedSpawnC = false;
+            for (int y = 2; y < Math.min(h - 2, 10) && !placedSpawnC; y++) {
+                for (int x = 3; x < w - 3; x++) {
+                    if (!solid[x][0] && !solid[x][y] && solid[x][y + 1]) {
+                        list.add(createTrigger(parent, x, y, LvlTriggerType.SPAWN_C.ordinal()));
+                        placedSpawnC = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (exits.contains(ExitSide.BOTTOM)) {
+            int firstOpenX = -1;
+            for (int x = 3; x < w - 3; x++) {
+                if (!solid[x][h - 1]) {
+                    if (firstOpenX == -1) firstOpenX = x;
+                    list.add(createTrigger(parent, x, h - 1, LvlTriggerType.LOAD_DOWN_LEVEL.ordinal()));
+                }
+            }
+            if (firstOpenX != -1) {
+                int spawnX = Math.max(3, firstOpenX - 2);
+                int spawnY = h - 4;
+                list.add(createTrigger(parent, spawnX, spawnY, LvlTriggerType.SPAWN_D.ordinal()));
             }
         }
         return list;

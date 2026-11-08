@@ -1,6 +1,7 @@
 package editor.gui.view.tab;
 
 import editor.generator.LevelGeneratorFacade;
+import editor.generator.strategy.ExitSide;
 import editor.generator.strategy.RoomArchetype;
 import editor.model.repository.Node;
 import editor.model.repository.components.Level;
@@ -8,7 +9,9 @@ import editor.settings.SettingsKey;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static editor.constants.Constants.TOOLBAR_COLOR;
@@ -33,6 +36,11 @@ public class GenerateLevelDialog extends JDialog {
 
     private final JTextArea taAiPrompt = new JTextArea(3, 25);
     private final JPasswordField pfApiKey = new JPasswordField(20);
+
+    private final JCheckBox chkExitLeft = new JCheckBox("Left", true);
+    private final JCheckBox chkExitRight = new JCheckBox("Right", true);
+    private final JCheckBox chkExitTop = new JCheckBox("Top", false);
+    private final JCheckBox chkExitBottom = new JCheckBox("Bottom", false);
 
     /**
      * Constructs the level generator dialog bound to the specified tab view.
@@ -66,6 +74,14 @@ public class GenerateLevelDialog extends JDialog {
         addRow(form, gbc, row++, "Width (Tiles):", spWidth);
         addRow(form, gbc, row++, "Height (Tiles):", spHeight);
         addRow(form, gbc, row++, "Room Archetype:", cbArchetype);
+
+        JPanel exitSidesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        exitSidesPanel.add(chkExitLeft);
+        exitSidesPanel.add(chkExitRight);
+        exitSidesPanel.add(chkExitTop);
+        exitSidesPanel.add(chkExitBottom);
+        addRow(form, gbc, row++, "Exit Sides:", exitSidesPanel);
+
         addRow(form, gbc, row++, "Enemy Density:", slEnemyDensity);
         addRow(form, gbc, row++, "Decoration Density:", slDecoDensity);
 
@@ -120,7 +136,8 @@ public class GenerateLevelDialog extends JDialog {
                     (Integer) spHeight.getValue(),
                     (RoomArchetype) cbArchetype.getSelectedItem(),
                     slEnemyDensity.getValue() / 100.0,
-                    slDecoDensity.getValue() / 100.0
+                    slDecoDensity.getValue() / 100.0,
+                    getSelectedExitSides()
             );
             dispose();
         });
@@ -219,7 +236,8 @@ public class GenerateLevelDialog extends JDialog {
 
                 SwingUtilities.invokeLater(() -> {
                     loadingDialog.stopAndClose();
-                    generator.applyAsciiToLevel(tabView.getLevel(), w, h, blueprint, deco);
+                    Set<ExitSide> exitSides = getSelectedExitSides();
+                    generator.applyAsciiToLevel(tabView.getLevel(), w, h, blueprint, deco, exitSides);
                     dispose();
                 });
             } catch (Throwable ex) {
@@ -244,6 +262,15 @@ public class GenerateLevelDialog extends JDialog {
         gbc.gridx = 1;
         gbc.weightx = 0.65;
         panel.add(comp, gbc);
+    }
+
+    private Set<ExitSide> getSelectedExitSides() {
+        Set<ExitSide> sides = EnumSet.noneOf(ExitSide.class);
+        if (chkExitLeft.isSelected()) sides.add(ExitSide.LEFT);
+        if (chkExitRight.isSelected()) sides.add(ExitSide.RIGHT);
+        if (chkExitTop.isSelected()) sides.add(ExitSide.TOP);
+        if (chkExitBottom.isSelected()) sides.add(ExitSide.BOTTOM);
+        return sides;
     }
 
     /**
