@@ -29,12 +29,11 @@ public class Constants {
     // Editor
     public static double MIN_ZOOM = 0.3;
     public static double MAX_ZOOM = 3.0;
-    public static int EDITOR_PICKER_ROW = 10;
     public static int EDITOR_PICKER_COL = 10;
 
     public static int TILE_SIZE = 64;
 
-    public static final int DECO_NUM = 80;
+    public static final int DECO_NUM = 100;
 
     // Counter
     public static int PROJECT_NUM = 1;
