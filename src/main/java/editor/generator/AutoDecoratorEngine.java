@@ -210,6 +210,10 @@ public class AutoDecoratorEngine {
                             decos.add(createDeco(parent, x, y, 0, DECO_MOSS1_BIG));
                             nextAllowedVineX = x + 7;
                         }
+                        else if (airHeight >= 6 && isThickFlatCeiling(solid, x, y - 1, 2, w) && rand.nextDouble() < density * 0.45) {
+                            decos.add(createDeco(parent, x, y, 0, DECO_MOSS1_BIG));
+                            nextAllowedVineX = x + 6;
+                        }
                         else if (airHeight >= 4 && isThickFlatCeiling(solid, x, y - 1, 2, w) && rand.nextDouble() < density * 0.30) {
                             int id = OPEN_AIR_HANGING_MOSS[rand.nextInt(OPEN_AIR_HANGING_MOSS.length)];
                             decos.add(createDeco(parent, x, y, 0, id));

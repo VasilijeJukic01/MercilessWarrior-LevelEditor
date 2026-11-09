@@ -29,6 +29,7 @@ public class PlayabilityValidator {
         }
         enforceOuterShellAndSelectedExits(solid, w, h, exits);
         connectAllAirChambers(solid, w, h);
+        smoothIntoTerracesAndArenas(solid, w, h);
         ensureHeadroom(solid, w, h);
         removeStackedPlatformBlockers(solid, w, h);
         guaranteeJumpPathBetweenExits(solid, w, h, exits);
@@ -414,6 +415,34 @@ public class PlayabilityValidator {
 
             carveConnectorTunnel(solid, bestMain.x, bestMain.y, bestIso.x, bestIso.y, w, h);
             mainCavern.addAll(isolated);
+        }
+    }
+
+    /**
+     * Converts jagged 1-tile sawtooth noise into clean 2-to-5 tile wide stepped terraces and flat plateaus (matching hand-crafted levels) so trees, boulders, and lanterns have flat ground.
+     */
+    private void smoothIntoTerracesAndArenas(boolean[][] solid, int w, int h) {
+        for (int pass = 0; pass < 2; pass++) {
+            for (int x = 4; x < w - 4; x++) {
+                for (int y = 4; y < h - 4; y++) {
+                    // Shave 1-tile-wide floor bumps sticking up into the air
+                    if (solid[x][y] && !solid[x][y - 1] && solid[x][y + 1] && !solid[x - 1][y] && !solid[x + 1][y]) {
+                        solid[x][y] = false;
+                    }
+                    // Fill 1-tile-wide narrow floor holes between two solid floor tiles
+                    if (!solid[x][y] && !solid[x][y - 1] && solid[x][y + 1] && solid[x - 1][y] && solid[x + 1][y]) {
+                        solid[x][y] = true;
+                    }
+                    // Shave 1-tile-wide ceiling stalactite spikes
+                    if (solid[x][y] && solid[x][y - 1] && !solid[x][y + 1] && !solid[x - 1][y] && !solid[x + 1][y]) {
+                        solid[x][y] = false;
+                    }
+                    //  Fill 1-tile-wide ceiling notches
+                    if (!solid[x][y] && solid[x][y - 1] && !solid[x][y + 1] && solid[x - 1][y] && solid[x + 1][y]) {
+                        solid[x][y] = true;
+                    }
+                }
+            }
         }
     }
 
