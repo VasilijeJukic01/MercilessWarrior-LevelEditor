@@ -75,4 +75,8 @@ public class StateManager {
     public RectFillState getRectFillState() {
         return rectFillState;
     }
+
+    public EditState getEditState() {
+        return editState;
+    }
 }

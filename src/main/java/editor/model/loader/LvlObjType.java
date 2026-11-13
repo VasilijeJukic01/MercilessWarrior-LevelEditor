@@ -12,7 +12,7 @@ public enum LvlObjType {
     ARROW_TRAP_LEFT("ArrowTrap",    TILE_SIZE, TILE_SIZE, 0, 8),                // 5
     ARROW_TRAP_RIGHT("~ArrowTrap",  TILE_SIZE, TILE_SIZE, 0, 8),                // 6
     COIN("Coin",                    TILE_SIZE/2, TILE_SIZE/2, 15, 20),          // 7
-    SHOP("Shop",                    TILE_SIZE_4, TILE_SIZE_4, 0, 8),            // 8
+    SHOP("Shop",                    TILE_SIZE_4, TILE_SIZE_3, 0, 8),            // 8
     BLOCKER("Blocker",              TILE_SIZE, TILE_SIZE_3+16, 0, -8),          // 9
     BLACKSMITH("Blacksmith",        TILE_SIZE, TILE_SIZE+TILE_SIZE/2, 0, 40),   // 10
     DOG("Dog",                      TILE_SIZE, TILE_SIZE, 0, 8),                // 11
@@ -20,7 +20,7 @@ public enum LvlObjType {
     SMASH_TRAP("SmashTrap",         TILE_SIZE, TILE_SIZE_2, 0, -15),            // 13
     CANDLE("Candle",                TILE_SIZE, TILE_SIZE_2, 0, 8),              // 14
     LOOT("Loot",                    TILE_SIZE, TILE_SIZE, 0, 8),                // 15
-    TABLE("Table",                  TILE_SIZE, TILE_SIZE, 0, 8),                // 16
+    TABLE("Table",                  TILE_SIZE_2, TILE_SIZE_2, 0, 32),                // 16
     BOARD("Board",                  TILE_SIZE_2, TILE_SIZE_2, 0, 8),            // 17
     NPC("NPC",                      TILE_SIZE, (int)(TILE_SIZE*1.3), 0, 8),     // 18
     LAVA("Lava",                    TILE_SIZE, TILE_SIZE, 0, 8),                // 19

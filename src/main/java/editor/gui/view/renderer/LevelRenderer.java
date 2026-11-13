@@ -12,10 +12,7 @@ import editor.model.repository.components.Tile;
 import editor.model.repository.components.TileType;
 import editor.settings.SettingsKey;
 import editor.state.State;
-import editor.state.states.AddState;
-import editor.state.states.DeleteState;
-import editor.state.states.PasteState;
-import editor.state.states.SelectState;
+import editor.state.states.*;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -74,6 +71,9 @@ public class LevelRenderer implements Renderer {
         ((SelectState) Framework.getInstance().getGui().getProjectView().getStateManager().getSelectState()).renderSelection(g, tabView);
         renderActiveAiZones(g);
         Framework.getInstance().getGui().getProjectView().getStateManager().getRectFillState().renderPreview(g);
+        if (Framework.getInstance().getGui().getProjectView().getStateManager().getCurrentState() instanceof EditState editState) {
+            editState.renderGizmo(g, tabView);
+        }
     }
 
     /**

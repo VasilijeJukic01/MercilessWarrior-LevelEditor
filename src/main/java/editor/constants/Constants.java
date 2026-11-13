@@ -33,7 +33,7 @@ public class Constants {
 
     public static int TILE_SIZE = 64;
 
-    public static final int DECO_NUM = 100;
+    public static final int DECO_NUM = 150;
 
     // Counter
     public static int PROJECT_NUM = 1;

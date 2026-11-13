@@ -294,13 +294,13 @@ public class MinimapGenerator {
             icons.add(new int[]{x, y, ICON_SAVE});
         }
         else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.SHOP.ordinal()) {
-            icons.add(new int[]{Math.min(maxW - 1, x + 1), Math.min(maxH - 1, y + 3), ICON_SHOP});
+            icons.add(new int[]{Math.min(maxW - 1, x + 1), Math.min(maxH - 1, y + 2), ICON_SHOP});
         }
         else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.BLACKSMITH.ordinal()) {
             icons.add(new int[]{x, Math.min(maxH - 1, y + 1), ICON_BLACKSMITH});
         }
         else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.TABLE.ordinal()) {
-            icons.add(new int[]{x, y, ICON_CRAFTING});
+            icons.add(new int[]{x, Math.min(maxH - 1, y + 1), ICON_CRAFTING});
         }
         else if (r1 == 254 && b1 == 254 && g1 == LvlEnemyType.SPEAR_WOMAN.ordinal()) {
             icons.add(new int[]{x, y, ICON_BOSS});

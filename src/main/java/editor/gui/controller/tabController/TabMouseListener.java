@@ -4,6 +4,7 @@ import editor.gui.view.EditorFrame;
 import editor.gui.view.tab.TabView;
 import editor.model.repository.Node;
 import editor.model.repository.components.Tile;
+import editor.state.states.EditState;
 
 import javax.swing.*;
 import java.awt.*;
@@ -33,7 +34,15 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
     }
 
     @Override
-    public void mouseClicked(MouseEvent e) {}
+    public void mouseClicked(MouseEvent e) {
+        if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 2) {
+            if (EditorFrame.getInstance().getProjectView().getStateManager().getCurrentState() instanceof EditState editState) {
+                if (editState.getActiveTile() != null) {
+                    editState.promptLayerOrResetPopup(editState.getActiveTile(), tabView);
+                }
+            }
+        }
+    }
 
     @Override
     public void mousePressed(MouseEvent e) {
@@ -77,7 +86,12 @@ public class TabMouseListener implements MouseListener, MouseMotionListener {
 
     @Override
     public void mouseMoved(MouseEvent e) {
-        performAction(e, (x, y) -> tabView.updateHoverTile(x / TILE_SIZE, y / TILE_SIZE));
+        performAction(e, (x, y) -> {
+            tabView.updateHoverTile(x / TILE_SIZE, y / TILE_SIZE);
+            if (EditorFrame.getInstance().getProjectView().getStateManager().getCurrentState() instanceof EditState editState) {
+                editState.updateHover(x, y, tabView);
+            }
+        });
     }
 
     @Override
