@@ -49,7 +49,7 @@ public class ExportDialog extends JDialog {
     private boolean hasRotatedOrScaledDecos() {
         for (Node n : level.getChildren()) {
             if (n instanceof Tile t && t.getTileType() == TileType.DECO) {
-                if (t.getRotation() != 0.0 || t.getScaleX() != 1.0 || t.getScaleY() != 1.0) {
+                if (t.hasCustomTransform()) {
                     return true;
                 }
             }

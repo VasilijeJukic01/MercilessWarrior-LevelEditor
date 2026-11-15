@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import editor.core.EditorAssetManager;
 import editor.core.Framework;
 import editor.logger.LogType;
 import editor.model.repository.Node;
@@ -178,7 +179,7 @@ public class AiPromptService {
     }
 
     private String loadPromptTemplate(String resourcePath) throws IOException {
-        try (InputStream is = Objects.requireNonNull(getClass().getResourceAsStream(resourcePath), "Prompt file not found: " + resourcePath)) {
+        try (InputStream is = Objects.requireNonNull(EditorAssetManager.getInstance().getResourceAsStream(resourcePath), "Prompt file not found: " + resourcePath)) {
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

@@ -131,12 +131,11 @@ public final class TileHitDetector {
                 List<DecoMetadata> metaList = Framework.getInstance().getStorage().getDecoMetadataMap().get(set);
                 if (metaList != null && val >= 0 && val < metaList.size()) {
                     DecoMetadata dm = metaList.get(val);
-                    return new Rectangle(
-                            baseX + dm.getxOffset(),
-                            baseY + dm.getyOffset(),
-                            dm.getWid(),
-                            dm.getHei()
-                    );
+                    int w = (int) Math.round(dm.getWid() * tile.getScaleX());
+                    int h = (int) Math.round(dm.getHei() * tile.getScaleY());
+                    int cx = baseX + dm.getxOffset() + tile.getOffsetX() + dm.getWid() / 2;
+                    int cy = baseY + dm.getyOffset() + tile.getOffsetY() + dm.getHei() / 2;
+                    return new Rectangle(cx - w / 2, cy - h / 2, w, h);
                 }
             }
             case PLAYER -> {

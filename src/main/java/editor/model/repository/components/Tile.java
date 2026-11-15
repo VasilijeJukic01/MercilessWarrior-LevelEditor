@@ -11,6 +11,7 @@ public class Tile extends Node {
     private int red, green, blue;
     private double rotation = 0.0;
     private double scaleX = 1.0, scaleY = 1.0;
+    private int offsetX = 0, offsetY = 0;
 
     public Tile(String name, Node parent) {
         super(name, parent);
@@ -32,6 +33,8 @@ public class Tile extends Node {
         clone.setRotation(this.rotation);
         clone.setScaleX(this.scaleX);
         clone.setScaleY(this.scaleY);
+        clone.setOffsetX(this.offsetX);
+        clone.setOffsetY(this.offsetY);
         return clone;
     }
 
@@ -118,5 +121,27 @@ public class Tile extends Node {
     public void setScaleY(double scaleY) {
         this.scaleY = scaleY;
         notifyParent();
+    }
+
+    public int getOffsetX() {
+        return offsetX;
+    }
+
+    public void setOffsetX(int offsetX) {
+        this.offsetX = offsetX;
+        notifyParent();
+    }
+
+    public int getOffsetY() {
+        return offsetY;
+    }
+
+    public void setOffsetY(int offsetY) {
+        this.offsetY = offsetY;
+        notifyParent();
+    }
+
+    public boolean hasCustomTransform() {
+        return rotation != 0.0 || scaleX != 1.0 || scaleY != 1.0 || offsetX != 0 || offsetY != 0;
     }
 }

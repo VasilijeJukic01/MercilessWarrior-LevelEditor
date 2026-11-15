@@ -70,8 +70,10 @@ public class LevelLoader implements Loader {
                     Tile tile = (Tile) node;
                     if (tile.getTileType() == TileType.DECO && tile.getX() == meta.getX() && tile.getY() == meta.getY() && tile.getLayer() == meta.getLayer()) {
                         tile.setRotation(meta.getRotation());
-                        tile.setScaleX(meta.getScaleX());
-                        tile.setScaleY(meta.getScaleY());
+                        tile.setScaleX(meta.getScaleX() != 0 ? meta.getScaleX() : 1.0);
+                        tile.setScaleY(meta.getScaleY() != 0 ? meta.getScaleY() : 1.0);
+                        tile.setOffsetX(meta.getOffsetX());
+                        tile.setOffsetY(meta.getOffsetY());
                         break;
                     }
                 }

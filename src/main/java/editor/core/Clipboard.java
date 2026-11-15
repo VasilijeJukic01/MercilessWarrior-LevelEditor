@@ -24,6 +24,8 @@ public class Clipboard {
             copy.setRotation(original.getRotation());
             copy.setScaleX(original.getScaleX());
             copy.setScaleY(original.getScaleY());
+            copy.setOffsetX(original.getOffsetX());
+            copy.setOffsetY(original.getOffsetY());
             copiedTiles.add(copy);
         }
     }

@@ -17,7 +17,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.util.ArrayList;
 import java.util.List;
 
 import static editor.constants.Constants.TILE_SIZE;
@@ -30,7 +29,8 @@ public class EditState implements State<TabView> {
     public enum Handle {
         NONE,
         NW, N, NE, E, SE, S, SW, W,
-        ROTATE
+        ROTATE,
+        MOVE
     }
 
     private static final Color GIZMO_LINE_COLOR = new Color(255, 255, 255, 235);
@@ -42,7 +42,9 @@ public class EditState implements State<TabView> {
     private Handle hoveredHandle = Handle.NONE;
 
     private double startRotation, startScaleX, startScaleY;
-    private int startLayer;
+    private int startOffsetX, startOffsetY, startLayer;
+    private int dragStartMouseX, dragStartMouseY;
+    private Point2D.Double startCenter;
     private double dragStartAngleRad;
 
     private int lastClickTileX = -1, lastClickTileY = -1;
@@ -80,9 +82,8 @@ public class EditState implements State<TabView> {
         selection.clear();
         selection.add(activeTile);
 
-        if (activeTile.getTileType() != TileType.DECO) {
-            promptLayerOrResetPopup(activeTile, tabView);
-        }
+        if (activeTile.getTileType() == TileType.DECO) beginTransformDrag(Handle.MOVE, x, y, tabView);
+        else promptLayerOrResetPopup(activeTile, tabView);
 
         tabView.getLevel().notify(selection);
     }
@@ -92,60 +93,105 @@ public class EditState implements State<TabView> {
         if (activeTile == null || activeHandle == Handle.NONE) return;
 
         DecoMetadata meta = getDecoMeta(activeTile, tabView);
-        if (meta == null) return;
+        if (meta == null || startCenter == null) return;
 
-        Point2D.Double center = getTileCenter(activeTile, meta);
         boolean shiftDown = tabView.getTabKeyListener() != null && tabView.getTabKeyListener().isShiftFlag();
+        if (activeHandle == Handle.MOVE) {
+            int dx = x - dragStartMouseX;
+            int dy = y - dragStartMouseY;
+            activeTile.setOffsetX(startOffsetX + dx);
+            activeTile.setOffsetY(startOffsetY + dy);
+            return;
+        }
+
         if (activeHandle == Handle.ROTATE) {
-            double currentAngle = Math.atan2(y - center.y, x - center.x);
+            Point2D.Double currentCenter = getTileCenter(activeTile, meta);
+            double currentAngle = Math.atan2(y - currentCenter.y, x - currentCenter.x);
             double deltaDeg = Math.toDegrees(currentAngle - dragStartAngleRad);
             double newRot = (startRotation + deltaDeg) % 360.0;
             if (newRot < 0) newRot += 360.0;
             if (shiftDown) {
                 newRot = Math.round(newRot / 15.0) * 15.0;
             }
-            activeTile.setRotation(newRot);
+            activeTile.setRotation(roundTwoDecimals(newRot));
             return;
         }
 
-        Point2D.Double localPt = toUnscaledRotatedLocal(x, y, center, activeTile.getRotation());
-        double halfW = Math.max(8.0, meta.getWid() / 2.0);
-        double halfH = Math.max(8.0, meta.getHei() / 2.0);
+        Point2D.Double localPt = toUnscaledRotatedLocal(x, y, startCenter, startRotation);
+        double baseW = Math.max(16.0, meta.getWid());
+        double baseH = Math.max(16.0, meta.getHei());
+        double halfW = baseW / 2.0;
+        double halfH = baseH / 2.0;
 
-        double newScaleX = activeTile.getScaleX();
-        double newScaleY = activeTile.getScaleY();
+        int signX = switch (activeHandle) {
+            case E, NE, SE -> 1;
+            case W, NW, SW -> -1;
+            default -> 0;
+        };
+        int signY = switch (activeHandle) {
+            case S, SE, SW -> 1;
+            case N, NE, NW -> -1;
+            default -> 0;
+        };
 
-        if (activeHandle == Handle.E || activeHandle == Handle.W) {
-            newScaleX = clampScale(Math.abs(localPt.x) / halfW);
+        double newScaleX = startScaleX;
+        double newScaleY = startScaleY;
+
+        if (signX != 0) {
+            double fixedEdgeX = -signX * halfW * startScaleX;
+            double spanW = signX * (localPt.x - fixedEdgeX);
+            newScaleX = clampScale(spanW / baseW);
         }
-        else if (activeHandle == Handle.N || activeHandle == Handle.S) {
-            newScaleY = clampScale(Math.abs(localPt.y) / halfH);
+        if (signY != 0) {
+            double fixedEdgeY = -signY * halfH * startScaleY;
+            double spanH = signY * (localPt.y - fixedEdgeY);
+            newScaleY = clampScale(spanH / baseH);
         }
-        else {
-            newScaleX = clampScale(Math.abs(localPt.x) / halfW);
-            newScaleY = clampScale(Math.abs(localPt.y) / halfH);
-            if (shiftDown) {
-                double ratio = (startScaleY != 0) ? (startScaleX / startScaleY) : 1.0;
-                double uniform = Math.max(newScaleX, newScaleY);
-                newScaleX = clampScale(uniform * (ratio >= 1.0 ? 1.0 : ratio));
-                newScaleY = clampScale(uniform / (ratio >= 1.0 ? ratio : 1.0));
-            }
+
+        if (signX != 0 && signY != 0 && shiftDown) {
+            double ratio = (startScaleY != 0) ? (startScaleX / startScaleY) : 1.0;
+            double uniform = Math.max(newScaleX, newScaleY);
+            newScaleX = clampScale(uniform * (ratio >= 1.0 ? 1.0 : ratio));
+            newScaleY = clampScale(uniform / (ratio >= 1.0 ? ratio : 1.0));
         }
+
+        double localShiftX = 0.0;
+        double localShiftY = 0.0;
+        if (signX != 0) {
+            double fixedEdgeX = -signX * halfW * startScaleX;
+            double movingEdgeX = fixedEdgeX + signX * baseW * newScaleX;
+            localShiftX = (fixedEdgeX + movingEdgeX) / 2.0;
+        }
+        if (signY != 0) {
+            double fixedEdgeY = -signY * halfH * startScaleY;
+            double movingEdgeY = fixedEdgeY + signY * baseH * newScaleY;
+            localShiftY = (fixedEdgeY + movingEdgeY) / 2.0;
+        }
+
+        double rad = Math.toRadians(startRotation);
+        double cos = Math.cos(rad);
+        double sin = Math.sin(rad);
+
+        double worldShiftX = localShiftX * cos - localShiftY * sin;
+        double worldShiftY = localShiftX * sin + localShiftY * cos;
 
         activeTile.setScaleX(roundTwoDecimals(newScaleX));
         activeTile.setScaleY(roundTwoDecimals(newScaleY));
+        activeTile.setOffsetX((int) Math.round(startOffsetX + worldShiftX));
+        activeTile.setOffsetY((int) Math.round(startOffsetY + worldShiftY));
     }
 
     @Override
     public void releasePerform(int x, int y, TabView tabView) {
         if (activeTile != null && activeHandle != Handle.NONE) {
-            boolean changed = activeTile.getRotation() != startRotation || activeTile.getScaleX() != startScaleX || activeTile.getScaleY() != startScaleY || activeTile.getLayer() != startLayer;
+            boolean changed = activeTile.getRotation() != startRotation || activeTile.getScaleX() != startScaleX || activeTile.getScaleY() != startScaleY || activeTile.getOffsetX() != startOffsetX || activeTile.getOffsetY() != startOffsetY || activeTile.getLayer() != startLayer;
 
             if (changed) {
                 Command cmd = new TransformNodeCommand(
                         tabView.getLevel(), activeTile,
-                        startRotation, startScaleX, startScaleY, startLayer,
-                        activeTile.getRotation(), activeTile.getScaleX(), activeTile.getScaleY(), activeTile.getLayer()
+                        startRotation, startScaleX, startScaleY, startOffsetX, startOffsetY, startLayer,
+                        activeTile.getRotation(), activeTile.getScaleX(), activeTile.getScaleY(),
+                        activeTile.getOffsetX(), activeTile.getOffsetY(), activeTile.getLayer()
                 );
                 Framework.getInstance().getGui().getCommandManager().addCommand(cmd);
             }
@@ -238,7 +284,7 @@ public class EditState implements State<TabView> {
     }
 
     private void drawTransformBadge(Graphics2D g2d, Point2D.Double center, double halfH, double zoom, Tile tile) {
-        String info = String.format("W: %.2fx  H: %.2fx  Rot: %.1f°  [L%d]", tile.getScaleX(), tile.getScaleY(), tile.getRotation(), tile.getLayer());
+        String info = String.format("W: %.2fx  H: %.2fx  Rot: %.1f°  Offset: (%+d, %+d)  [L%d]", tile.getScaleX(), tile.getScaleY(), tile.getRotation(), tile.getOffsetX(), tile.getOffsetY(), tile.getLayer());
         Font font = new Font("SansSerif", Font.BOLD, Math.max(10, (int) Math.round(11 / zoom)));
         g2d.setFont(font);
         FontMetrics fm = g2d.getFontMetrics();
@@ -266,12 +312,16 @@ public class EditState implements State<TabView> {
         this.startRotation = activeTile.getRotation();
         this.startScaleX = activeTile.getScaleX();
         this.startScaleY = activeTile.getScaleY();
+        this.startOffsetX = activeTile.getOffsetX();
+        this.startOffsetY = activeTile.getOffsetY();
         this.startLayer = activeTile.getLayer();
+        this.dragStartMouseX = x;
+        this.dragStartMouseY = y;
 
         DecoMetadata meta = getDecoMeta(activeTile, tabView);
         if (meta != null) {
-            Point2D.Double center = getTileCenter(activeTile, meta);
-            this.dragStartAngleRad = Math.atan2(y - center.y, x - center.x);
+            this.startCenter = getTileCenter(activeTile, meta);
+            this.dragStartAngleRad = Math.atan2(y - startCenter.y, x - startCenter.x);
         }
     }
 
@@ -300,6 +350,10 @@ public class EditState implements State<TabView> {
         if (isNear(local.x, local.y, -halfW, 0, tol * 1.2)) return Handle.W;
         if (isNear(local.x, local.y, halfW, 0, tol * 1.2)) return Handle.E;
 
+        if (Math.abs(local.x) <= halfW && Math.abs(local.y) <= halfH) {
+            return Handle.MOVE;
+        }
+
         boolean outsideBox = Math.abs(local.x) > halfW + tol * 0.5 || Math.abs(local.y) > halfH + tol * 0.5;
         boolean nearOuterCorners = Math.abs(local.x) <= halfW + tol * 2.4 && Math.abs(local.y) <= halfH + tol * 2.4;
         if (outsideBox && nearOuterCorners) {
@@ -318,7 +372,7 @@ public class EditState implements State<TabView> {
         JComboBox<Integer> cbLayer = new JComboBox<>(layers);
         cbLayer.setSelectedItem(tile.getLayer());
 
-        JCheckBox chkReset = new JCheckBox("Reset Rotation (0°) & Scale (1.0x)");
+        JCheckBox chkReset = new JCheckBox("Reset Rotation (0°), Scale (1.0x) & Offset (0, 0)");
         JPanel panel = new JPanel(new GridLayout(0, 1, 4, 4));
         panel.add(new JLabel("Assign Z-Layer:"));
         panel.add(cbLayer);
@@ -331,14 +385,18 @@ public class EditState implements State<TabView> {
             double oldRot = tile.getRotation();
             double oldSx = tile.getScaleX();
             double oldSy = tile.getScaleY();
+            int oldOx = tile.getOffsetX();
+            int oldOy = tile.getOffsetY();
             int oldLayer = tile.getLayer();
 
             int newLayer = (Integer) cbLayer.getSelectedItem();
             double newRot = chkReset.isSelected() ? 0.0 : oldRot;
             double newSx = chkReset.isSelected() ? 1.0 : oldSx;
             double newSy = chkReset.isSelected() ? 1.0 : oldSy;
+            int newOx = chkReset.isSelected() ? 0 : oldOx;
+            int newOy = chkReset.isSelected() ? 0 : oldOy;
 
-            Command cmd = new TransformNodeCommand(tabView.getLevel(), tile, oldRot, oldSx, oldSy, oldLayer, newRot, newSx, newSy, newLayer);
+            Command cmd = new TransformNodeCommand(tabView.getLevel(), tile, oldRot, oldSx, oldSy, oldOx, oldOy, oldLayer, newRot, newSx, newSy, newOx, newOy, newLayer);
             Framework.getInstance().getGui().getCommandManager().addCommand(cmd);
         }
     }
@@ -364,12 +422,9 @@ public class EditState implements State<TabView> {
     }
 
     private Point2D.Double getTileCenter(Tile tile, DecoMetadata meta) {
-        boolean isDefault = tile.getRotation() == 0.0 && tile.getScaleX() == 1.0 && tile.getScaleY() == 1.0;
-        double ox = isDefault ? meta.getxOffset() : 0.0;
-        double oy = isDefault ? meta.getyOffset() : 0.0;
         return new Point2D.Double(
-                tile.getX() * TILE_SIZE + ox + meta.getWid() / 2.0,
-                tile.getY() * TILE_SIZE + oy + meta.getHei() / 2.0
+                tile.getX() * TILE_SIZE + meta.getxOffset() + tile.getOffsetX() + meta.getWid() / 2.0,
+                tile.getY() * TILE_SIZE + meta.getyOffset() + tile.getOffsetY() + meta.getHei() / 2.0
         );
     }
 
@@ -401,6 +456,7 @@ public class EditState implements State<TabView> {
             case NW, SE -> Cursor.getPredefinedCursor(Cursor.NW_RESIZE_CURSOR);
             case NE, SW -> Cursor.getPredefinedCursor(Cursor.NE_RESIZE_CURSOR);
             case ROTATE -> Cursor.getPredefinedCursor(Cursor.HAND_CURSOR);
+            case MOVE -> Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
             default -> Cursor.getDefaultCursor();
         };
     }

@@ -86,12 +86,8 @@ public class WorldMapRouter {
     }
 
     /**
-     * Scans all rooms on the map canvas.
-     * When two rooms are physically placed next to each other, this checks if their exit triggers align.
-     * If they do, it automatically generates the RoomExitMetadata connecting them so the player can walk between rooms in-game.
-     *
-     * @param rooms All placed rooms on the canvas.
-     * @return The number of successful exit connections wired.
+     * Scans all rooms on the map canvas, clusters exit trigger tiles by tunnel, finds the touching neighbor room across each seam, and links to the nearest SPAWN_A..D inside
+     * that specific entry tunnel (automatically creating a new SPAWN marker if the tunnel lacks one).
      */
     public int autoWireTouchingExits(Collection<WorldMapRoomEntry> rooms) {
         int wiredCount = 0;
@@ -106,23 +102,22 @@ public class WorldMapRouter {
             List<RoomExitMetadata> newExits = new ArrayList<>();
             for (Map.Entry<String, List<Point>> entry : groupedTriggers.entrySet()) {
                 String trigName = entry.getKey();
-                List<Point> clusters = clusterTriggerPoints(entry.getValue());
+                List<Rectangle> tunnelBounds = clusterTriggerBounds(entry.getValue());
 
-                for (Point pt : clusters) {
-                    int globalX = room.getMapX() + pt.x;
-                    int globalY = room.getMapY() + pt.y;
-                    int probeX = globalX + (trigName.equals("LOAD_RIGHT_LEVEL") ? 2 : trigName.equals("LOAD_LEFT_LEVEL") ? -2 : 0);
-                    int probeY = globalY + (trigName.equals("LOAD_DOWN_LEVEL") ? 2 : trigName.equals("LOAD_UP_LEVEL") ? -2 : 0);
+                for (Rectangle bounds : tunnelBounds) {
+                    int centerX = bounds.x + bounds.width / 2;
+                    int centerY = bounds.y + bounds.height / 2;
+                    int globalX = room.getMapX() + centerX;
+                    int globalY = room.getMapY() + centerY;
 
-                    WorldMapRoomEntry neighbor = findRoomContainingGlobalPoint(rooms, probeX, probeY, room);
+                    WorldMapRoomEntry neighbor = findNeighborAcrossSeam(rooms, room, trigName, globalX, globalY);
                     if (neighbor != null) {
-                        String bestSpawn = findClosestSpawnInNeighbor(neighbor, globalX, globalY, trigName);
-                        RoomExitMetadata exit = new RoomExitMetadata(trigName, neighbor.getId(), bestSpawn);
-                        if (clusters.size() > 1) {
-                            exit.setMinX(Math.max(0, pt.x - 4));
-                            exit.setMaxX(pt.x + 4);
-                            exit.setMinY(Math.max(0, pt.y - 4));
-                            exit.setMaxY(pt.y + 4);
+                        RoomExitMetadata exit = buildExitToNeighborTunnel(neighbor, globalX, globalY, trigName);
+                        if (tunnelBounds.size() > 1) {
+                            exit.setMinX(Math.max(0, bounds.x - 2));
+                            exit.setMaxX(bounds.x + bounds.width + 2);
+                            exit.setMinY(Math.max(0, bounds.y - 2));
+                            exit.setMaxY(bounds.y + bounds.height + 2);
                         }
                         newExits.add(exit);
                         wiredCount++;
@@ -134,46 +129,105 @@ public class WorldMapRouter {
         return wiredCount;
     }
 
-    private List<Point> clusterTriggerPoints(List<Point> points) {
-        List<Point> reps = new ArrayList<>();
-        for (Point p : points) {
-            boolean nearExisting = false;
-            for (Point r : reps) {
-                if (p.distance(r) <= 5.0) {
-                    nearExisting = true;
-                    break;
-                }
-            }
-            if (!nearExisting) reps.add(p);
-        }
-        return reps;
-    }
-
-    private WorldMapRoomEntry findRoomContainingGlobalPoint(Collection<WorldMapRoomEntry> rooms, int gx, int gy, WorldMapRoomEntry exclude) {
-        for (WorldMapRoomEntry candidate : rooms) {
-            if (candidate == exclude) continue;
-            if (candidate.getBounds().contains(gx, gy)) return candidate;
-        }
-        return null;
-    }
-
-    private String findClosestSpawnInNeighbor(WorldMapRoomEntry neighbor, int globalExitX, int globalExitY, String trigName) {
-        String bestSpawn = switch (trigName) {
+    private RoomExitMetadata buildExitToNeighborTunnel(WorldMapRoomEntry neighbor, int globalExitX, int globalExitY, String trigName) {
+        String defaultSpawn = switch (trigName) {
             case "LOAD_LEFT_LEVEL" -> "SPAWN_A";
             case "LOAD_RIGHT_LEVEL" -> "SPAWN_B";
             case "LOAD_UP_LEVEL" -> "SPAWN_C";
             default -> "SPAWN_D";
         };
+
+        WorldMapRoomEntry.TriggerMarker closestMarker = null;
         double bestDist = Double.MAX_VALUE;
+
         for (WorldMapRoomEntry.TriggerMarker tm : neighbor.getTriggers()) {
             if (tm.type().name().startsWith("SPAWN_")) {
                 double d = Point.distance(globalExitX, globalExitY, neighbor.getMapX() + tm.x(), neighbor.getMapY() + tm.y());
                 if (d < bestDist) {
                     bestDist = d;
-                    bestSpawn = tm.type().name();
+                    closestMarker = tm;
                 }
             }
         }
-        return bestSpawn;
+
+        if (closestMarker != null && bestDist <= 10.0) {
+            RoomExitMetadata exit = new RoomExitMetadata(trigName, neighbor.getId(), closestMarker.type().name());
+            exit.setSpawnX(closestMarker.x());
+            exit.setSpawnY(closestMarker.y());
+            return exit;
+        }
+
+        int localEntryX = Math.max(2, Math.min(neighbor.getWidth() - 3, globalExitX - neighbor.getMapX()));
+        int localEntryY = Math.max(2, Math.min(neighbor.getHeight() - 3, globalExitY - neighbor.getMapY()));
+        if (trigName.equals("LOAD_LEFT_LEVEL")) localEntryX = Math.max(2, neighbor.getWidth() - 3);
+        else if (trigName.equals("LOAD_RIGHT_LEVEL")) localEntryX = 2;
+        else if (trigName.equals("LOAD_UP_LEVEL")) localEntryY = Math.max(2, neighbor.getHeight() - 3);
+        else if (trigName.equals("LOAD_DOWN_LEVEL")) localEntryY = 2;
+
+        BufferedImage p1 = neighbor.getPanel1Image();
+        for (int dy = 0; dy < 8 && localEntryY + dy < neighbor.getHeight() - 1; dy++) {
+            int y = localEntryY + dy;
+            int rHere = (p1.getRGB(localEntryX, y) >> 16) & 0xFF;
+            int rBelow = (p1.getRGB(localEntryX, y + 1) >> 16) & 0xFF;
+            if (rHere >= 49 && rBelow < 49) {
+                localEntryY = y;
+                break;
+            }
+        }
+
+        RoomExitMetadata exit = new RoomExitMetadata(trigName, neighbor.getId(), defaultSpawn);
+        exit.setSpawnX(localEntryX);
+        exit.setSpawnY(localEntryY);
+        return exit;
+    }
+
+    /**
+     * Groups contiguous or nearby trigger tiles (within 3 tiles) into bounding rectangles so each distinct exit tunnel gets its own accurate bounding box and center point.
+     */
+    private List<Rectangle> clusterTriggerBounds(List<Point> points) {
+        List<Rectangle> clusters = new ArrayList<>();
+        boolean[] visited = new boolean[points.size()];
+
+        for (int i = 0; i < points.size(); i++) {
+            if (visited[i]) continue;
+            visited[i] = true;
+
+            Queue<Point> q = new ArrayDeque<>();
+            q.add(points.get(i));
+            int minX = points.get(i).x, maxX = points.get(i).x;
+            int minY = points.get(i).y, maxY = points.get(i).y;
+
+            while (!q.isEmpty()) {
+                Point curr = q.poll();
+                minX = Math.min(minX, curr.x);
+                maxX = Math.max(maxX, curr.x);
+                minY = Math.min(minY, curr.y);
+                maxY = Math.max(maxY, curr.y);
+                for (int j = 0; j < points.size(); j++) {
+                    if (!visited[j] && curr.distance(points.get(j)) <= 3.5) {
+                        visited[j] = true;
+                        q.add(points.get(j));
+                    }
+                }
+            }
+            clusters.add(new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1));
+        }
+        return clusters;
+    }
+
+    private WorldMapRoomEntry findNeighborAcrossSeam(Collection<WorldMapRoomEntry> rooms, WorldMapRoomEntry source, String trigName, int globalX, int globalY) {
+        int dx = trigName.equals("LOAD_RIGHT_LEVEL") ? 1 : trigName.equals("LOAD_LEFT_LEVEL") ? -1 : 0;
+        int dy = trigName.equals("LOAD_DOWN_LEVEL") ? 1 : trigName.equals("LOAD_UP_LEVEL") ? -1 : 0;
+        for (int step = 1; step <= 4; step++) {
+            int probeX = globalX + dx * step;
+            int probeY = globalY + dy * step;
+            for (WorldMapRoomEntry candidate : rooms) {
+                if (candidate == source) continue;
+                if (candidate.getBounds().contains(probeX, probeY)) {
+                    return candidate;
+                }
+            }
+        }
+        return null;
     }
 }

@@ -43,6 +43,8 @@ public class PasteState implements State<TabView> {
             newTile.setRotation(original.getRotation());
             newTile.setScaleX(original.getScaleX());
             newTile.setScaleY(original.getScaleY());
+            newTile.setOffsetX(original.getOffsetX());
+            newTile.setOffsetY(original.getOffsetY());
             pasteCommands.add(new AddNodeCommand(tabView.getLevel(), newTile));
         }
 

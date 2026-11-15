@@ -5,8 +5,10 @@ import editor.gui.view.style.CustomButton;
 import editor.gui.view.tab.TabView;
 import editor.model.repository.components.Tile;
 import editor.settings.SettingsKey;
+import editor.utils.Utils;
 
 import javax.swing.*;
+import java.awt.image.BufferedImage;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
@@ -14,8 +16,8 @@ import java.util.Optional;
 public abstract class AbstractEditorAction extends AbstractAction {
 
     public Optional<Icon> loadIcon(String file) {
-        return Optional.ofNullable(getClass().getResource(file))
-                .map(AbstractEditorAction::createImageIcon);
+        BufferedImage img = Utils.getInstance().importImage(file, -1, -1);
+        return img != null ? Optional.of(new ImageIcon(img)) : Optional.empty();
     }
 
     private static Icon createImageIcon(URL url) {

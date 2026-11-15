@@ -12,6 +12,8 @@ public class RoomExitMetadata {
     private Integer maxX;
     private Integer minY;
     private Integer maxY;
+    private Integer spawnX;
+    private Integer spawnY;
 
     public RoomExitMetadata() {}
 
@@ -75,5 +77,21 @@ public class RoomExitMetadata {
 
     public void setMaxY(Integer maxY) {
         this.maxY = maxY;
+    }
+
+    public Integer getSpawnX() {
+        return spawnX;
+    }
+
+    public void setSpawnX(Integer spawnX) {
+        this.spawnX = spawnX;
+    }
+
+    public Integer getSpawnY() {
+        return spawnY;
+    }
+
+    public void setSpawnY(Integer spawnY) {
+        this.spawnY = spawnY;
     }
 }

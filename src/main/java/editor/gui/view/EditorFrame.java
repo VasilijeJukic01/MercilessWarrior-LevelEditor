@@ -8,9 +8,11 @@ import editor.model.tree.EditorTree;
 import editor.model.tree.Tree;
 import editor.model.tree.mvc.TreeItem;
 import editor.model.tree.mvc.TreeView;
+import editor.utils.Utils;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 
 import static editor.constants.Constants.*;
 import static editor.constants.FilePaths.EDITOR_ICON;
@@ -54,10 +56,9 @@ public class EditorFrame extends JFrame {
     }
 
     private void initWindow() {
-        Toolkit tk = Toolkit.getDefaultToolkit();
-        Image icon = tk.getImage(getClass().getResource(EDITOR_ICON));
+        BufferedImage icon = Utils.getInstance().importImage(EDITOR_ICON, -1, -1);
+        if (icon != null) this.setIconImage(icon);
         this.setSize(SCREEN_WID, SCREEN_HEI);
-        this.setIconImage(icon);
         this.setTitle("Level Editor");
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setLocationRelativeTo(null);

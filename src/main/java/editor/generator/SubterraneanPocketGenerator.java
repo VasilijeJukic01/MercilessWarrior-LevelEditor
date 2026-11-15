@@ -5,21 +5,26 @@ import editor.model.repository.components.Level;
 import editor.model.repository.components.Tile;
 import editor.model.repository.components.TileType;
 
-import java.awt.*;
 import java.util.*;
-import java.util.List;
 
 /**
  * Generates procedural Layer 5 subterranean cutaways (L-hooks, U-alcoves, Z-steps, irregular caverns, stepped hills, and 3x3 rings) inside deep interior earth and populates them with Layer 4 decorations.
  */
 public class SubterraneanPocketGenerator {
 
-    private static final int[] INNER_PLANTS = {6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 51, 62, 63};
-    private static final int[] INNER_SHROOMS = {55, 56, 57};
-    private static final int[] INNER_CRYSTALS = {64, 65};
+    private static final int[] SMALL_PLANTS = {6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 62, 63};
+    private static final int[] SMALL_SHROOMS = {55, 56, 57};
+    private static final int[] CRYSTALS = {64, 65};
+
+    private static final int[] CLASSIC_FLOOR_PROPS = {0, 1, 2, 25, 40, 41, 44, 45, 46, 48, 49, 54, 58};
+    private static final int[] CRADLE_NOOK_SETPIECES = {89, 91, 94, 95, 110, 116, 118, 119, 120};
+    private static final int[] DEEP_VOID_SETPIECES = {92, 93, 106, 116, 121};
+    private static final int[] CAVERN_CEILING_MOSS = {21, 22, 23, 73, 76};
+    private static final int[] VERTICAL_ROOT_COLUMNS = {96, 104, 114};
 
     private final AutoTileRuleEngine tileEngine;
     private final Random rand = new Random();
+    private final Deque<Integer> recentSetpieces = new ArrayDeque<>();
 
     public SubterraneanPocketGenerator(AutoTileRuleEngine tileEngine) {
         this.tileEngine = tileEngine;
@@ -39,92 +44,11 @@ public class SubterraneanPocketGenerator {
         boolean[][] used = new boolean[w][h];
         int[][] placedL5 = new int[w][h];
         for (int x = 0; x < w; x++) Arrays.fill(placedL5[x], -1);
+        recentSetpieces.clear();
 
-        List<Point> candidates = new ArrayList<>();
-        for (int y = 2; y < h - 3; y += 2) {
-            for (int x = 2; x < w - 4; x += 2) {
-                int jx = Math.min(w - 4, Math.max(2, x + rand.nextInt(3) - 1));
-                int jy = Math.min(h - 3, Math.max(2, y + rand.nextInt(3) - 1));
-                if (deepEarth[jx][jy]) candidates.add(new Point(jx, jy));
-            }
-        }
-        Collections.shuffle(candidates, rand);
-
-        boolean placedRareRing = false;
-        int lastMotifType = -1;
-
-        for (Point pt : candidates) {
-            int x = pt.x, y = pt.y;
-            if (used[x][y] || !deepEarth[x][y]) continue;
-
-            int motif = rand.nextInt(7);
-            if (motif == lastMotifType) motif = (motif + 1 + rand.nextInt(5)) % 7;
-
-            boolean placed = false;
-            switch (motif) {
-                case 0 -> {
-                    int cw = 6 + rand.nextInt(4);
-                    int ch = 4 + rand.nextInt(3);
-                    if (isFreeDeepEarthBox(deepEarth, used, x, y, cw, ch, w, h)) {
-                        stampIrregularLayer5Cavern(placedL5, used, x, y, cw, ch);
-                        placed = true;
-                    }
-                }
-                case 1 -> {
-                    int lw = 4 + rand.nextInt(4);
-                    int lh = 3 + rand.nextInt(2);
-                    if (isFreeDeepEarthBox(deepEarth, used, x, y, lw, lh, w, h)) {
-                        stampOpenLHook(placedL5, used, x, y, lw, lh, rand.nextBoolean());
-                        placed = true;
-                    }
-                }
-                case 2 -> {
-                    int uw = 4 + rand.nextInt(4);
-                    int uh = 3 + rand.nextInt(2);
-                    if (isFreeDeepEarthBox(deepEarth, used, x, y, uw, uh, w, h)) {
-                        stampOpenUAlcove(placedL5, used, x, y, uw, uh);
-                        placed = true;
-                    }
-                }
-                case 3 -> {
-                    int zw = 5 + rand.nextInt(4);
-                    int zh = 3 + rand.nextInt(2);
-                    if (isFreeDeepEarthBox(deepEarth, used, x, y, zw, zh, w, h)) {
-                        stampZStepContour(placedL5, used, x, y, zw, zh, rand.nextBoolean());
-                        placed = true;
-                    }
-                }
-                case 4 -> {
-                    int hw = 5 + rand.nextInt(4);
-                    int hh = 3 + rand.nextInt(2);
-                    if (isFreeDeepEarthBox(deepEarth, used, x, y, hw, hh, w, h)) {
-                        buildSubterraneanStaircaseInRegion(placedL5, new Rectangle(x, y, hw, hh), w, h);
-                        markBoxUsed(used, x - 2, y - 2, hw + 4, hh + 4, w, h);
-                        placed = true;
-                    }
-                }
-                case 5 -> {
-                    if (!placedRareRing && isFreeDeepEarthBox(deepEarth, used, x, y, 3, 3, w, h)) {
-                        stampHollow3x3Ring(placedL5, used, x, y, w, h);
-                        placedRareRing = true;
-                        placed = true;
-                    }
-                }
-                case 6 -> {
-                    int sw = 3 + rand.nextInt(3);
-                    if (isFreeDeepEarthBox(deepEarth, used, x, y, sw, 2, w, h)) {
-                        for (int k = 0; k < sw; k++) {
-                            placedL5[x + k][y + 1] = (k == 0) ? 21 : (k == sw - 1) ? 23 : 22;
-                        }
-                        markBoxUsed(used, x - 2, y - 2, sw + 4, 5, w, h);
-                        placed = true;
-                    }
-                }
-            }
-
-            if (placed) lastMotifType = motif;
-        }
-
+        carveEnclosedSubterraneanCaverns(parent, deepEarth, used, placedL5, w, h, outNodes);
+        carveLongSteppedFloorContours(deepEarth, used, placedL5, w, h);
+        carveMidLevelCradlesAndShelves(parent, deepEarth, used, placedL5, w, h, outNodes);
         for (int x = 1; x < w - 1; x++) {
             for (int y = 1; y < h - 1; y++) {
                 if (placedL5[x][y] != -1) {
@@ -133,226 +57,269 @@ public class SubterraneanPocketGenerator {
                 }
             }
         }
-        decorateSubterraneanFeatures(parent, deepEarth, used, placedL5, w, h, outNodes);
+        decorateSubterraneanEcosystem(parent, deepEarth, used, placedL5, w, h, outNodes);
     }
 
     /**
      * Builds a connected subterranean staircase/hill terrace inside the specified rectangular region.
      */
-    public void buildSubterraneanStaircaseInRegion(int[][] placedL5, Rectangle box, int w, int h) {
-        int x1 = Math.max(1, box.x + 1);
-        int x2 = Math.min(w - 2, box.x + box.width - 2);
-        int availW = x2 - x1 + 1;
-        if (availW < 3) return;
+    private void carveEnclosedSubterraneanCaverns(Level parent, boolean[][] deepEarth, boolean[][] used, int[][] placedL5, int w, int h, List<Node> outNodes) {
+        for (int y = 3; y < h - 6; y += 3) {
+            for (int x = 3; x < w - 9; x += 4) {
+                int cw = 6 + rand.nextInt(4);
+                int ch = 4 + rand.nextInt(3);
+                if (!isFreeDeepEarthBox(deepEarth, used, x, y, cw, ch, w, h)) continue;
+                if (rand.nextDouble() > 0.65) continue;
 
-        int topY = Math.min(h - 3, Math.max(2, box.y + Math.max(2, box.height / 2)));
-        int botY = Math.min(h - 2, box.y + box.height - 1);
+                boolean[][] localSolid = new boolean[cw + 2][ch + 2];
+                for (int lx = 0; lx < cw + 2; lx++) Arrays.fill(localSolid[lx], true);
 
-        if (availW < 8 || topY + 1 >= botY) {
-            for (int x = x1; x <= x2; x++) {
-                placedL5[x][topY] = (x == x1) ? 0 : (x == x2) ? 2 : 1;
+                int splitX = 2 + cw / 2;
+                int topY1 = 2;
+                int topY2 = (ch >= 5 && rand.nextBoolean()) ? 3 : 2;
+                int botY1 = ch - 1;
+                int botY2 = (ch >= 5 && rand.nextBoolean()) ? (ch - 2) : (ch - 1);
+
+                for (int lx = 2; lx < cw; lx++) {
+                    int yStart = (lx < splitX) ? topY1 : topY2;
+                    int yEnd = (lx < splitX) ? botY1 : botY2;
+                    for (int ly = yStart; ly <= yEnd; ly++) {
+                        localSolid[lx][ly] = false;
+                    }
+                }
+
+                for (int lx = 1; lx <= cw; lx++) {
+                    for (int ly = 1; ly <= ch; ly++) {
+                        if (localSolid[lx][ly]) {
+                            int id = tileEngine.pickExactTileId(localSolid, lx, ly, cw + 2, ch + 2);
+                            if (id != 8) {
+                                placedL5[x + lx - 1][y + ly - 1] = id;
+                            }
+                        }
+                    }
+                }
+                markBoxUsed(used, x - 2, y - 1, cw + 4, ch + 2, w, h);
             }
-            for (int y = topY + 1; y <= botY; y++) {
-                placedL5[x1][y] = 7;
-                placedL5[x2][y] = 9;
-            }
-            return;
-        }
-
-        if (availW < 13) {
-            int splitX = x1 + Math.max(2, availW / 3);
-            int lowY = topY + 1;
-
-            for (int x = x1; x <= splitX; x++) {
-                placedL5[x][lowY] = (x == x1) ? 0 : (x == splitX) ? 12 : 1;
-            }
-            for (int y = lowY + 1; y <= botY; y++) {
-                placedL5[x1][y] = 7;
-            }
-
-            for (int x = splitX; x <= x2; x++) {
-                placedL5[x][topY] = (x == splitX) ? 0 : (x == x2) ? 2 : 1;
-            }
-            for (int y = topY + 1; y <= botY; y++) {
-                placedL5[x2][y] = 9;
-            }
-            return;
-        }
-
-        int hillEndX = x2 - 4;
-        int splitX = x1 + Math.max(2, (hillEndX - x1) / 3);
-        int lowY = topY + 1;
-
-        for (int x = x1; x <= splitX; x++) {
-            placedL5[x][lowY] = (x == x1) ? 0 : (x == splitX) ? 12 : 1;
-        }
-        for (int y = lowY + 1; y <= botY; y++) {
-            placedL5[x1][y] = 7;
-        }
-
-        for (int x = splitX; x <= hillEndX; x++) {
-            placedL5[x][topY] = (x == splitX) ? 0 : (x == hillEndX) ? 2 : 1;
-        }
-        for (int y = topY + 1; y <= botY; y++) {
-            placedL5[hillEndX][y] = 9;
-        }
-
-        if (hillEndX + 2 <= x2 && topY >= 2) {
-            placedL5[hillEndX + 2][topY] = 24;
-        }
-        if (hillEndX + 4 <= x2 && topY - 1 >= 2) {
-            placedL5[hillEndX + 4][topY - 1] = 24;
         }
     }
 
-    private void stampIrregularLayer5Cavern(int[][] placedL5, boolean[][] used, int rx, int ry, int rw, int rh) {
-        boolean[][] localSolid = new boolean[rw + 2][rh + 2];
-        for (int x = 0; x < rw + 2; x++) Arrays.fill(localSolid[x], true);
+    /**
+     * Scans the lower and middle bands of deep earth to build long, continuous stepped subterranean floor contours (width 6..16) so the bottom of the level is never a blank black void.
+     */
+    private void carveLongSteppedFloorContours(boolean[][] deepEarth, boolean[][] used, int[][] placedL5, int w, int h) {
+        for (int baseY = h - 2; baseY >= 5; baseY -= 4) {
+            int x = 2;
+            while (x < w - 5) {
+                if (!deepEarth[x][baseY] || used[x][baseY] || !deepEarth[x][baseY - 1]) {
+                    x++;
+                    continue;
+                }
 
-        int splitX = 2 + rw / 2;
-        int topY1 = rand.nextBoolean() ? 2 : 3;
-        int topY2 = (topY1 == 2 && rh >= 5) ? 3 : 2;
-        int botY1 = rh - 1;
-        int botY2 = (rh >= 5 && rand.nextBoolean()) ? (rh - 2) : (rh - 1);
+                int runStart = x;
+                int maxRun = 7 + rand.nextInt(9);
+                while (x < w - 2 && (x - runStart) < maxRun && deepEarth[x][baseY] && !used[x][baseY] && deepEarth[x][baseY - 1] && !used[x][baseY - 1]) {
+                    x++;
+                }
+                int runEnd = x - 1;
+                int runLen = runEnd - runStart + 1;
+                if (runLen < 4) {
+                    x++;
+                    continue;
+                }
 
-        for (int x = 2; x < rw; x++) {
-            int yStart = (x < splitX) ? topY1 : topY2;
-            int yEnd = (x < splitX) ? botY1 : botY2;
-            for (int y = yStart; y <= yEnd; y++) {
-                localSolid[x][y] = false;
+                stampMultiStepContour(deepEarth, used, placedL5, runStart, runEnd, baseY, w, h);
+                x = runEnd + 3;
             }
         }
+    }
 
-        for (int x = 1; x <= rw; x++) {
-            for (int y = 1; y <= rh; y++) {
-                if (localSolid[x][y]) {
-                    int id = tileEngine.pickExactTileId(localSolid, x, y, rw + 2, rh + 2);
-                    if (id != 8) {
-                        placedL5[rx + x - 1][ry + y - 1] = id;
+    private void stampMultiStepContour(boolean[][] deepEarth, boolean[][] used, int[][] placedL5, int x1, int x2, int baseY, int w, int h) {
+        int span = x2 - x1 + 1;
+        int curY = baseY;
+
+        placedL5[x1][curY] = 0;
+        for (int wy = curY + 1; wy < h - 1 && deepEarth[x1][wy]; wy++) {
+            placedL5[x1][wy] = 7;
+        }
+
+        int stepPoint1 = (span >= 7) ? (x1 + span / 3 + rand.nextInt(2)) : -1;
+        int stepPoint2 = (span >= 11) ? (x1 + (span * 2) / 3 + rand.nextInt(2)) : -1;
+        for (int x = x1 + 1; x < x2; x++) {
+            if ((x == stepPoint1 || x == stepPoint2) && curY - 1 >= 3 && deepEarth[x][curY - 1] && !used[x][curY - 1]) {
+                placedL5[x][curY] = 12;
+                curY = curY - 1;
+                placedL5[x][curY] = 0;
+            }
+            else if ((x == stepPoint1 || x == stepPoint2) && curY + 1 < h - 1 && deepEarth[x][curY + 1] && !used[x][curY + 1]) {
+                placedL5[x][curY] = 2;
+                curY = curY + 1;
+                placedL5[x][curY] = 11;
+            }
+            else placedL5[x][curY] = 1;
+        }
+
+        placedL5[x2][curY] = 2;
+        for (int wy = curY + 1; wy < h - 1 && deepEarth[x2][wy]; wy++) {
+            placedL5[x2][wy] = 9;
+        }
+
+        markBoxUsed(used, x1 - 1, Math.max(1, curY - 2), span + 2, 5, w, h);
+    }
+
+    /**
+     * Fills remaining mid-level black earth pockets with U-cradles, L-hooks, and compact shelves.
+     */
+    private void carveMidLevelCradlesAndShelves(Level parent, boolean[][] deepEarth, boolean[][] used, int[][] placedL5, int w, int h, List<Node> outNodes) {
+        for (int y = 2; y < h - 3; y += 2) {
+            for (int x = 2; x < w - 4; x += 2) {
+                if (used[x][y] || !deepEarth[x][y]) continue;
+
+                int uw = 4 + rand.nextInt(2);
+                int uh = 3;
+                if (isFreeDeepEarthBox(deepEarth, used, x, y, uw, uh, w, h)) {
+                    int floorY = y + uh - 1;
+                    int rightX = x + uw - 1;
+                    placedL5[x][y] = 0;
+                    placedL5[rightX][y] = 2;
+                    for (int wy = y + 1; wy < floorY; wy++) {
+                        placedL5[x][wy] = 9;
+                        placedL5[rightX][wy] = 7;
                     }
+                    placedL5[x][floorY] = 11;
+                    placedL5[rightX][floorY] = 12;
+                    for (int fx = x + 1; fx < rightX; fx++) placedL5[fx][floorY] = 1;
+
+                    if (uw >= 4 && rand.nextDouble() < 0.65) {
+                        int setpiece = pickNonRepeatingSetpiece(CRADLE_NOOK_SETPIECES);
+                        Tile d = new Tile("", parent, TileType.DECO, x + 1, floorY - 2, 254, 4, setpiece);
+                        d.setLayer(4);
+                        outNodes.add(d);
+                    }
+                    markBoxUsed(used, x - 1, y - 1, uw + 2, uh + 2, w, h);
+                    continue;
+                }
+
+                int lw = 3 + rand.nextInt(2);
+                if (isFreeDeepEarthBox(deepEarth, used, x, y, lw, 2, w, h)) {
+                    boolean wallLeft = rand.nextBoolean();
+                    int floorY = y + 1;
+                    if (wallLeft) {
+                        placedL5[x][y] = 3;
+                        placedL5[x][floorY] = 11;
+                        for (int fx = x + 1; fx < x + lw - 1; fx++) placedL5[fx][floorY] = 1;
+                        placedL5[x + lw - 1][floorY] = 2;
+                    }
+                    else {
+                        int wx = x + lw - 1;
+                        placedL5[wx][y] = 3;
+                        placedL5[wx][floorY] = 12;
+                        for (int fx = x + 1; fx < wx; fx++) placedL5[fx][floorY] = 1;
+                        placedL5[x][floorY] = 0;
+                    }
+                    markBoxUsed(used, x - 1, y - 1, lw + 2, 4, w, h);
                 }
             }
         }
-        markBoxUsed(used, rx - 2, ry - 2, rw + 4, rh + 4, used.length, used[0].length);
     }
 
-    private void stampOpenLHook(int[][] placedL5, boolean[][] used, int rx, int ry, int lw, int lh, boolean wallOnLeft) {
-        int floorY = ry + lh - 1;
-        if (wallOnLeft) {
-            placedL5[rx][ry] = 3;
-            for (int y = ry + 1; y < floorY; y++) placedL5[rx][y] = 9;
-            placedL5[rx][floorY] = 11;
-            for (int x = rx + 1; x < rx + lw - 1; x++) placedL5[x][floorY] = 1;
-            placedL5[rx + lw - 1][floorY] = 2;
+    /**
+     * Populates all surfaces, cavern ceilings, vertical drops, and remaining black earth pockets with set-pieces.
+     */
+    private void decorateSubterraneanEcosystem(Level parent, boolean[][] deepEarth, boolean[][] used, int[][] placedL5, int w, int h, List<Node> outNodes) {
+        boolean[][] decoOccupied = new boolean[w][h];
+        for (Node n : outNodes) {
+            if (n instanceof Tile t && t.getTileType() == TileType.DECO && t.getBlue() != 34) {
+                if (t.getX() >= 0 && t.getX() < w && t.getY() >= 0 && t.getY() < h) {
+                    decoOccupied[t.getX()][t.getY()] = true;
+                }
+            }
         }
-        else {
-            int wallX = rx + lw - 1;
-            placedL5[wallX][ry] = 3;
-            for (int y = ry + 1; y < floorY; y++) placedL5[wallX][y] = 7;
-            placedL5[wallX][floorY] = 12;
-            for (int x = rx + 1; x < wallX; x++) placedL5[x][floorY] = 1;
-            placedL5[rx][floorY] = 0;
-        }
-        markBoxUsed(used, rx - 2, ry - 2, lw + 4, lh + 4, used.length, used[0].length);
-    }
 
-    private void stampOpenUAlcove(int[][] placedL5, boolean[][] used, int rx, int ry, int uw, int uh) {
-        int floorY = ry + uh - 1;
-        int rightX = rx + uw - 1;
+        int lastBigPropX = -4;
+        for (int y = 2; y < h - 1; y++) {
+            lastBigPropX = -4;
+            for (int x = 2; x < w - 3; x++) {
+                if (!deepEarth[x][y] || placedL5[x][y] != -1 || decoOccupied[x][y]) continue;
 
-        placedL5[rx][ry] = 0;
-        placedL5[rightX][ry] = 2;
-        for (int y = ry + 1; y < floorY; y++) {
-            placedL5[rx][y] = 9;
-            placedL5[rightX][y] = 7;
-        }
-        placedL5[rx][floorY] = 11;
-        placedL5[rightX][floorY] = 12;
-        for (int x = rx + 1; x < rightX; x++) {
-            placedL5[x][floorY] = 1;
-        }
-        markBoxUsed(used, rx - 2, ry - 2, uw + 4, uh + 4, used.length, used[0].length);
-    }
-
-    private void stampZStepContour(int[][] placedL5, boolean[][] used, int rx, int ry, int zw, int zh, boolean stepDownRight) {
-        int midX = rx + zw / 2;
-        int topY = ry + 1;
-        int botY = ry + zh - 1;
-
-        if (stepDownRight) {
-            placedL5[rx][topY] = 0;
-            for (int x = rx + 1; x < midX; x++) placedL5[x][topY] = 1;
-            placedL5[midX][topY] = 2;
-            for (int y = topY + 1; y < botY; y++) placedL5[midX][y] = 9;
-            placedL5[midX][botY] = 11;
-            for (int x = midX + 1; x < rx + zw - 1; x++) placedL5[x][botY] = 1;
-            placedL5[rx + zw - 1][botY] = 2;
-        }
-        else {
-            placedL5[rx][botY] = 0;
-            for (int x = rx + 1; x < midX; x++) placedL5[x][botY] = 1;
-            placedL5[midX][botY] = 12;
-            for (int y = topY + 1; y < botY; y++) placedL5[midX][y] = 7;
-            placedL5[midX][topY] = 0;
-            for (int x = midX + 1; x < rx + zw - 1; x++) placedL5[x][topY] = 1;
-            placedL5[rx + zw - 1][topY] = 2;
-        }
-        markBoxUsed(used, rx - 2, ry - 2, zw + 4, zh + 4, used.length, used[0].length);
-    }
-
-    private void stampHollow3x3Ring(int[][] placedL5, boolean[][] used, int rx, int ry, int w, int h) {
-        placedL5[rx][ry] = 0;      placedL5[rx + 1][ry] = 1;      placedL5[rx + 2][ry] = 2;
-        placedL5[rx][ry + 1] = 7;  placedL5[rx + 1][ry + 1] = 24; placedL5[rx + 2][ry + 1] = 9;
-        placedL5[rx][ry + 2] = 14; placedL5[rx + 1][ry + 2] = 15; placedL5[rx + 2][ry + 2] = 16;
-        markBoxUsed(used, rx - 2, ry - 2, 7, 7, w, h);
-    }
-
-    private void decorateSubterraneanFeatures(Level parent, boolean[][] deepEarth, boolean[][] used, int[][] placedL5, int w, int h, List<Node> outNodes) {
-        int lastBigPropX = -5;
-        for (int x = 2; x < w - 3; x++) {
-            for (int y = 2; y < h - 2; y++) {
-                if (!deepEarth[x][y] || placedL5[x][y] != -1) continue;
-
-                int floorTileBelow = placedL5[x][y + 1];
-                if (isGrassyTopTile(floorTileBelow) || floorTileBelow == 21 || floorTileBelow == 23) {
-                    if (placedL5[x - 1][y + 1] == 0 && x - 2 >= 1 && deepEarth[x - 2][y + 1] && rand.nextDouble() < 0.50) {
+                int floorTileBelow = (y + 1 < h) ? placedL5[x][y + 1] : -1;
+                if (isGrassyTopTile(floorTileBelow) || floorTileBelow == 0 || floorTileBelow == 2) {
+                    if (x - 2 >= 1 && placedL5[x - 1][y + 1] == 0 && deepEarth[x - 2][y + 1] && !decoOccupied[x - 2][y + 1] && rand.nextDouble() < 0.65) {
                         addDeco(parent, outNodes, x - 2, y + 1, 4, 24);
+                        decoOccupied[x - 2][y + 1] = true;
                     }
-                    if (placedL5[x + 1][y + 1] == 2 && x + 2 < w - 1 && deepEarth[x + 2][y + 1] && rand.nextDouble() < 0.50) {
+                    if (x + 2 < w - 1 && placedL5[x + 1][y + 1] == 2 && deepEarth[x + 2][y + 1] && !decoOccupied[x + 2][y + 1] && rand.nextDouble() < 0.65) {
                         addDeco(parent, outNodes, x + 2, y + 1, 4, 37);
+                        decoOccupied[x + 2][y + 1] = true;
+                    }
+                    if (x - lastBigPropX >= 4 && hasConsecutiveGrassyTop(placedL5, x, y + 1, 3, w) && placedL5[x][y - 1] == -1 && rand.nextDouble() < 0.62) {
+                        int propId = (rand.nextDouble() < 0.45) ? pickNonRepeatingSetpiece(CRADLE_NOOK_SETPIECES) : CLASSIC_FLOOR_PROPS[rand.nextInt(CLASSIC_FLOOR_PROPS.length)];
+                        int anchorY = (propId == 44 || propId == 116) ? y : (y - 1);
+                        addDeco(parent, outNodes, x, anchorY, 4, propId);
+                        decoOccupied[x][y] = true;
+                        decoOccupied[x + 1][y] = true;
+                        lastBigPropX = x;
+                        continue;
                     }
 
-                    if (x - lastBigPropX >= 5 && hasConsecutiveGrassyTop(placedL5, x, y + 1, 3, w) && placedL5[x][y - 1] == -1 && rand.nextDouble() < 0.45) {
-                        double roll = rand.nextDouble();
-                        int bigId = (roll < 0.45) ? rand.nextInt(3) : (roll < 0.75) ? (48 + rand.nextInt(3)) : 58;
-                        addDeco(parent, outNodes, x, y - 1, 4, bigId);
-                        lastBigPropX = x;
+                    if (hasConsecutiveGrassyTop(placedL5, x, y + 1, 2, w) && rand.nextDouble() < 0.48) {
+                        int id = (rand.nextInt(4) == 0) ? 116 : (rand.nextBoolean() ? 30 : 33);
+                        addDeco(parent, outNodes, x, y, 4, id);
+                        decoOccupied[x][y] = true;
+                        decoOccupied[x + 1][y] = true;
+                        continue;
                     }
-                    else if (hasConsecutiveGrassyTop(placedL5, x, y + 1, 2, w) && rand.nextDouble() < 0.35) {
-                        addDeco(parent, outNodes, x, y, 4, rand.nextBoolean() ? 30 : 33);
-                    }
-                    else if (rand.nextDouble() < 0.65) {
-                        int decoId;
+
+                    if (rand.nextDouble() < 0.82) {
                         double r = rand.nextDouble();
-                        if (r < 0.28) decoId = INNER_SHROOMS[rand.nextInt(INNER_SHROOMS.length)];
-                        else if (r < 0.48) decoId = INNER_CRYSTALS[rand.nextInt(INNER_CRYSTALS.length)];
-                        else decoId = INNER_PLANTS[rand.nextInt(INNER_PLANTS.length)];
+                        int decoId = (r < 0.35) ? SMALL_SHROOMS[rand.nextInt(SMALL_SHROOMS.length)] : (r < 0.55) ? CRYSTALS[rand.nextInt(CRYSTALS.length)] : SMALL_PLANTS[rand.nextInt(SMALL_PLANTS.length)];
                         addDeco(parent, outNodes, x, y, 4, decoId);
+                        decoOccupied[x][y] = true;
                     }
                 }
 
                 int ceilTileAbove = placedL5[x][y - 1];
-                if ((ceilTileAbove == 15 || ceilTileAbove == 22) && placedL5[x][Math.min(h - 1, y + 1)] == -1 && rand.nextDouble() < 0.45) {
-                    addDeco(parent, outNodes, x, y, 4, rand.nextBoolean() ? 22 : 23);
-                }
-
-                if (!used[x][y] && y + 3 < h - 1 && deepEarth[x][y + 3] && rand.nextDouble() < 0.03) {
-                    int[] rootVines = {19, 20, 21};
-                    addDeco(parent, outNodes, x, y, 4, rootVines[rand.nextInt(rootVines.length)]);
-                    markBoxUsed(used, x - 2, y - 1, 5, 5, w, h);
+                if ((ceilTileAbove == 15 || ceilTileAbove == 14 || ceilTileAbove == 16) && (y + 2 < h && placedL5[x][y + 1] == -1 && placedL5[x][y + 2] == -1) && rand.nextDouble() < 0.58) {
+                    int hangerId = CAVERN_CEILING_MOSS[rand.nextInt(CAVERN_CEILING_MOSS.length)];
+                    addDeco(parent, outNodes, x, y, 4, hangerId);
+                    decoOccupied[x][y] = true;
                 }
             }
         }
+
+        for (int y = 3; y < h - 4; y += 3) {
+            for (int x = 3; x < w - 5; x += 4) {
+                if (isClearForVoidSetpiece(deepEarth, placedL5, decoOccupied, x, y, 4, 3, w, h) && rand.nextDouble() < 0.72) {
+                    int id = (y + 4 < h && deepEarth[x][y + 3] && rand.nextInt(4) == 0) ? VERTICAL_ROOT_COLUMNS[rand.nextInt(VERTICAL_ROOT_COLUMNS.length)] : pickNonRepeatingSetpiece(DEEP_VOID_SETPIECES);
+                    addDeco(parent, outNodes, x, y, 4, id);
+                    for (int dx = -1; dx <= 4; dx++) {
+                        for (int dy = -1; dy <= 3; dy++) {
+                            int nx = x + dx, ny = y + dy;
+                            if (nx >= 0 && nx < w && ny >= 0 && ny < h) decoOccupied[nx][ny] = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean isClearForVoidSetpiece(boolean[][] deepEarth, int[][] placedL5, boolean[][] decoOccupied, int sx, int sy, int bw, int bh, int w, int h) {
+        if (sx + bw >= w - 1 || sy + bh >= h - 1) return false;
+        for (int x = sx; x < sx + bw; x++) {
+            for (int y = sy; y < sy + bh; y++) {
+                if (!deepEarth[x][y] || placedL5[x][y] != -1 || decoOccupied[x][y]) return false;
+            }
+        }
+        return true;
+    }
+
+    private int pickNonRepeatingSetpiece(int[] pool) {
+        int chosen = pool[rand.nextInt(pool.length)];
+        for (int i = 0; i < 6 && recentSetpieces.contains(chosen); i++) {
+            chosen = pool[rand.nextInt(pool.length)];
+        }
+        recentSetpieces.addLast(chosen);
+        while (recentSetpieces.size() > 4) recentSetpieces.removeFirst();
+        return chosen;
     }
 
     private boolean isFreeDeepEarthBox(boolean[][] deepEarth, boolean[][] used, int sx, int sy, int bw, int bh, int w, int h) {
@@ -374,7 +341,7 @@ public class SubterraneanPocketGenerator {
     }
 
     private boolean isGrassyTopTile(int tileId) {
-        return tileId == 1 || tileId == 11 || tileId == 12 || tileId == 22 || tileId == 24;
+        return tileId == 1 || tileId == 11 || tileId == 12 || tileId == 22;
     }
 
     private boolean hasConsecutiveGrassyTop(int[][] placedL5, int x, int floorY, int span, int w) {

@@ -150,7 +150,7 @@ public class ExportLevelAction extends AbstractEditorAction {
 
         for (Node child : level.getChildren()) {
             Tile tile = (Tile) child;
-            if (tile.getTileType() == TileType.DECO && (tile.getRotation() != 0.0 || tile.getScaleX() != 1.0 || tile.getScaleY() != 1.0)) {
+            if (tile.getTileType() == TileType.DECO && tile.hasCustomTransform()) {
                 ObjectMetadata metadata = new ObjectMetadata();
                 metadata.setX(tile.getX());
                 metadata.setY(tile.getY());
@@ -158,6 +158,8 @@ public class ExportLevelAction extends AbstractEditorAction {
                 metadata.setRotation(tile.getRotation());
                 metadata.setScaleX(tile.getScaleX());
                 metadata.setScaleY(tile.getScaleY());
+                metadata.setOffsetX(tile.getOffsetX());
+                metadata.setOffsetY(tile.getOffsetY());
                 levelMetadata.getDecorations().add(metadata);
             }
         }

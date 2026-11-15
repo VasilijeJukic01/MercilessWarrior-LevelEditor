@@ -5,7 +5,6 @@ import editor.model.metadata.DecoMetadata;
 import editor.model.repository.components.Tile;
 import editor.model.repository.components.TileType;
 
-
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
@@ -29,7 +28,6 @@ public class DecoRenderer implements RenderStrategy<Tile> {
         int value = tile.getBlue();
         int layerIndex = tile.getLayer();
 
-        // Check bounds
         if (value != -1 && value < decoMetadata.size() && layerIndex == layer) {
             DecoMetadata deco = decoMetadata.get(value);
             BufferedImage model = decoTiles[value];
@@ -38,18 +36,18 @@ public class DecoRenderer implements RenderStrategy<Tile> {
             double rotation = tile.getRotation();
             double scaleX = tile.getScaleX();
             double scaleY = tile.getScaleY();
+            int baseX = tile.getX() * TILE_SIZE + deco.getxOffset() + tile.getOffsetX();
+            int baseY = tile.getY() * TILE_SIZE + deco.getyOffset() + tile.getOffsetY();
 
             if (rotation == 0.0 && scaleX == 1.0 && scaleY == 1.0) {
-                int x = tile.getX() * TILE_SIZE + deco.getxOffset();
-                int y = tile.getY() * TILE_SIZE + deco.getyOffset();
-                g.drawImage(model, x, y, deco.getWid(), deco.getHei(), null);
-            }
-            else {
+                g.drawImage(model, baseX, baseY, deco.getWid(), deco.getHei(), null);
+            } else {
                 Graphics2D g2d = (Graphics2D) g.create();
-                int tileTopLeftX = tile.getX() * TILE_SIZE;
-                int tileTopLeftY = tile.getY() * TILE_SIZE;
-                int centerX = tileTopLeftX + deco.getWid() / 2;
-                int centerY = tileTopLeftY + deco.getHei() / 2;
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                double centerX = baseX + deco.getWid() / 2.0;
+                double centerY = baseY + deco.getHei() / 2.0;
 
                 g2d.translate(centerX, centerY);
                 g2d.rotate(Math.toRadians(rotation));
@@ -60,5 +58,4 @@ public class DecoRenderer implements RenderStrategy<Tile> {
             }
         }
     }
-
 }

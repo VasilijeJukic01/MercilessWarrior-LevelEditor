@@ -201,6 +201,8 @@ public class WorldMapTabBridge {
                         deco.setRotation(om.getRotation());
                         deco.setScaleX(om.getScaleX());
                         deco.setScaleY(om.getScaleY());
+                        deco.setOffsetX(om.getOffsetX());
+                        deco.setOffsetY(om.getOffsetY());
                     }
                     targetLevel.getChildren().add(deco);
                 }

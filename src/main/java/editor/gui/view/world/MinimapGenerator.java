@@ -2,6 +2,7 @@ package editor.gui.view.world;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import editor.core.EditorAssetManager;
 import editor.core.Framework;
 import editor.logger.LogType;
 import editor.model.loader.LvlEnemyType;
@@ -45,7 +46,7 @@ public class MinimapGenerator {
     }
 
     private void loadBiomes() {
-        try (InputStream is = getClass().getResourceAsStream("/meta/blocks/biomes.json");
+        try (InputStream is = EditorAssetManager.getInstance().getResourceAsStream("/meta/blocks/biomes.json");
              InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
             Type type = new TypeToken<Map<String, BiomePalette>>(){}.getType();
             Map<String, BiomePalette> loaded = new Gson().fromJson(reader, type);
@@ -259,6 +260,7 @@ public class MinimapGenerator {
                 if (globalAir[x][y]) {
                     Color c;
                     if (globalObj[x][y] == LvlObjType.LAVA.ordinal()) c = new Color(235, 95, 25, 254);
+                    else if (globalObj[x][y] == LvlObjType.WATER.ordinal()) c = new Color(40, 165, 210, 254);
                     else if (globalObj[x][y] == LvlObjType.BRICK.ordinal()) c = new Color(212, 163, 89, 254);
                     else if (globalPlatform[x][y] || (y + 1 < totalH && globalSolid[x][y + 1])) c = pal.getFloorHighlight();
                     else {
@@ -372,6 +374,7 @@ public class MinimapGenerator {
 
     private Color computeSmoothWalkableColor(boolean[][] cleanSolid, boolean[][] rawSolid, int objId, int x, int y, int w, int h, BiomePalette palette) {
         if (objId == LvlObjType.LAVA.ordinal()) return new Color(235, 95, 25, 254);
+        else if (objId == LvlObjType.WATER.ordinal()) return new Color(40, 165, 210, 254);
         if (objId == LvlObjType.BRICK.ordinal()) return new Color(212, 163, 89, 254);
         if (rawSolid[x][y] && !cleanSolid[x][y]) return palette.getFloorHighlight();
         if (y + 1 < h && cleanSolid[x][y + 1]) return palette.getFloorHighlight();

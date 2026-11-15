@@ -52,7 +52,7 @@ public final class Storage {
         Gson gson = new Gson();
         String jsonPath = "/tilesets.json";
 
-        try (InputStream is = getClass().getResourceAsStream(jsonPath);
+        try (InputStream is = EditorAssetManager.getInstance().getResourceAsStream(jsonPath);
              Reader reader = new InputStreamReader(is)) {
             Type listType = new TypeToken<ArrayList<TilesetMetadata>>(){}.getType();
             List<TilesetMetadata> tilesets = gson.fromJson(reader, listType);
@@ -91,7 +91,7 @@ public final class Storage {
         Gson gson = new Gson();
         String jsonPath = "/decos/" + tilesetName.toLowerCase() + "_decos.json";
 
-        try (InputStream is = getClass().getResourceAsStream(jsonPath);
+        try (InputStream is = EditorAssetManager.getInstance().getResourceAsStream(jsonPath);
              Reader reader = new InputStreamReader(is)) {
 
             Type listType = new TypeToken<ArrayList<DecoMetadata>>(){}.getType();
@@ -105,7 +105,7 @@ public final class Storage {
                 DecoMetadata meta = metadataList.get(i);
                 String baseFilename = (meta.getFilename() != null && !meta.getFilename().isEmpty()) ? meta.getFilename() : meta.getId();
                 String imagePath = "/images/data/levelDecos/" + tilesetName.toLowerCase() + "/" + baseFilename + ".png";
-                BufferedImage loadedImage = Utils.getInstance().importImage(imagePath, meta.getWid(), meta.getHei());
+                BufferedImage loadedImage = Utils.getInstance().importImage(imagePath, -1, -1);
                 if (loadedImage != null && meta.isFlipped()) {
                     decoImages[i] = Utils.getInstance().flipImage(loadedImage);
                 }
@@ -124,17 +124,39 @@ public final class Storage {
     }
 
     private void loadObjects() {
-        BufferedImage[] objectsTilesImg = new BufferedImage[LvlObjType.values().length-1];
+        BufferedImage[] objectsTilesImg = new BufferedImage[LvlObjType.values().length - 1];
         List<Tile> objectTiles = new ArrayList<>();
         for (int i = 0; i < objectsTilesImg.length; i++) {
             LvlObjType objType = LvlObjType.values()[i];
-            objectsTilesImg[i] = Utils.getInstance().importImage("/images/data/levelObjects/"+objType.getId().replace("~","")+".png", -1, -1);
-            if (objType.getId().contains("~")) objectsTilesImg[i] = Utils.getInstance().flipImage(objectsTilesImg[i]);
+            if (objType == LvlObjType.WATER) {
+                objectsTilesImg[i] = createProceduralWaterIcon();
+            }
+            else {
+                objectsTilesImg[i] = Utils.getInstance().importImage("/images/data/levelObjects/" + objType.getId().replace("~", "") + ".png", -1, -1);
+                if (objectsTilesImg[i] != null && objType.getId().contains("~")) {
+                    objectsTilesImg[i] = Utils.getInstance().flipImage(objectsTilesImg[i]);
+                }
+            }
             Tile t = new Tile("", null, TileType.OBJECT, 0, 0, 254, 254, i);
             objectTiles.add(t);
         }
         imageMap.put("Objects", objectsTilesImg);
         tileMap.put("Objects", objectTiles);
+    }
+
+    private BufferedImage createProceduralWaterIcon() {
+        BufferedImage img = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = img.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        GradientPaint gp = new GradientPaint(0, 12, new Color(40, 195, 220, 185), 0, 64, new Color(12, 55, 80, 235));
+        g.setPaint(gp);
+        g.fillRoundRect(2, 12, 60, 50, 8, 8);
+        g.setColor(new Color(195, 250, 255, 240));
+        g.setStroke(new BasicStroke(3f));
+        g.drawArc(4, 8, 28, 8, 0, 180);
+        g.drawArc(32, 8, 28, 8, 180, 180);
+        g.dispose();
+        return img;
     }
 
     private void loadEnemies() {

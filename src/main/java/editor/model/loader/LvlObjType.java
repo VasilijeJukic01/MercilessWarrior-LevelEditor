@@ -32,6 +32,7 @@ public enum LvlObjType {
     HERB_PLACEHOLDER("Placeholder", 1, 1, 0, 0),                                // 25 Ignore
     TRAP_PLACEHOLDER("Placeholder", 1, 1, 0, 0),                                // 26 Ignore
     DOOR("Door",                    TILE_SIZE, (int)(TILE_SIZE*1.5), 0, 0),     // 27
+    WATER("Water",                  TILE_SIZE, TILE_SIZE, 0, 8),                // 28
     MAX("",                         0,0,0,0);
 
     private final String id;

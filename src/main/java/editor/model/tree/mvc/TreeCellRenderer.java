@@ -4,11 +4,12 @@ import editor.model.repository.Node;
 import editor.model.repository.components.Level;
 import editor.model.repository.components.Project;
 import editor.model.repository.components.ProjectExplorer;
+import editor.utils.Utils;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import java.awt.*;
-import java.net.URL;
+import java.awt.image.BufferedImage;
 
 import static editor.constants.Constants.EXPLORER_COLOR;
 import static editor.constants.Constants.TREE_SELECTION_COLOR;
@@ -28,18 +29,14 @@ public class TreeCellRenderer extends DefaultTreeCellRenderer {
 
     private Icon getIconForNode(Node node) {
         String iconPath = null;
-
         if (node instanceof ProjectExplorer) iconPath = TREE_EXPLORER_ICON;
         else if (node instanceof Project) iconPath = TREE_PROJECT_ICON;
         else if (node instanceof Level) iconPath = TREE_LEVEL_ICON;
 
         if (iconPath != null) {
-            URL imageURL = getClass().getResource(iconPath);
-            if (imageURL != null) {
-                return new ImageIcon(imageURL);
-            }
+            BufferedImage img = Utils.getInstance().importImage(iconPath, -1, -1);
+            if (img != null) return new ImageIcon(img);
         }
-
         return null;
     }
 

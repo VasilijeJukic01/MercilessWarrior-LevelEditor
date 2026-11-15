@@ -404,6 +404,14 @@ public class AiBlueprintApplier {
             if (decoCatalog != null) {
                 int decoIdx = findDecoIndexByName(decoCatalog, type);
                 if (decoIdx != -1) {
+                    if (decoIdx >= 122 && decoIdx <= 131 && l3FloorAirY != -1) {
+                        Tile dt = new Tile("", level, TileType.DECO, gx, l3FloorAirY, 254, 4, decoIdx);
+                        dt.setLayer(4);
+                        dt.setScaleX(1.04);
+                        explicitAiPlacements.add(dt);
+                        continue;
+                    }
+
                     DecoMetadata meta = decoCatalog.get(decoIdx);
                     int tilesTall = Math.max(1, meta.getHei() / 64);
                     int l5SurfaceY = findNearestLayer5SurfaceY(placedL5, region, gx, gyInput, type.startsWith("VINE") || type.startsWith("MOSS"));
@@ -412,8 +420,7 @@ public class AiBlueprintApplier {
                         Tile dt = new Tile("", level, TileType.DECO, gx, anchorY, 254, 4, decoIdx);
                         dt.setLayer(4);
                         explicitAiPlacements.add(dt);
-                    }
-                    else if (l3FloorAirY != -1) {
+                    } else if (l3FloorAirY != -1) {
                         int ceilY = entityPopulator.snapToCeilingY(solidSnapshot, gx, gyInput);
                         int anchorY = (type.startsWith("VINE") || type.startsWith("MOSS")) ? Math.max(0, ceilY != -1 ? ceilY : gyInput) : Math.max(0, l3FloorAirY - (tilesTall - 1));
                         int layer = (tilesTall == 1) ? 4 : 0;
@@ -641,14 +648,33 @@ public class AiBlueprintApplier {
             if (catalog.get(i).getId().equalsIgnoreCase(name)) return i;
         }
         return switch (name) {
-            case "TREE", "TREES" -> 59 + rand.nextInt(3);
+            case "UNDER_GRASS", "UNDER_GRASS_STRIP", "MOSS_STRIP", "LEDGE_STRIP" -> 122 + rand.nextInt(10);
+            case "TREE", "TREES" -> {
+                int[] pool = {59, 60, 61, 81, 82, 84};
+                yield pool[rand.nextInt(pool.length)];
+            }
             case "BUSH", "BUSHES" -> (rand.nextBoolean()) ? 25 : (42 + rand.nextInt(3));
             case "ROCK", "STONE", "BOULDER", "BIG_STONE" -> rand.nextInt(3);
             case "SHROOM", "MUSHROOM", "MUSHROOMS", "SHROOMS" -> 55 + rand.nextInt(4);
             case "CRYSTAL", "CRYSTALS" -> 64 + rand.nextInt(2);
+            case "CRYSTAL_MOUND", "FISSURE" -> rand.nextBoolean() ? 89 : 106;
             case "FLOWER", "FLOWERS" -> 45 + rand.nextInt(2);
-            case "LOG", "LOGS" -> 48 + rand.nextInt(3);
-            case "PILLAR", "COLUMN" -> 53;
+            case "LOG", "LOGS", "HOLLOW_LOG" -> {
+                int[] pool = {48, 49, 50, 85, 94, 95, 110};
+                yield pool[rand.nextInt(pool.length)];
+            }
+            case "STATUE", "SHRINE", "RUIN", "CRYPT", "TOMB" -> {
+                int[] pool = {83, 86, 87, 88};
+                yield pool[rand.nextInt(pool.length)];
+            }
+            case "COCOON", "HANGING_SHROOMS", "HANGING_PODS" -> {
+                int[] pool = {73, 74, 75, 80};
+                yield pool[rand.nextInt(pool.length)];
+            }
+            case "PILLAR", "COLUMN", "TAPROOT" -> {
+                int[] pool = {53, 96, 104, 114};
+                yield pool[rand.nextInt(pool.length)];
+            }
             case "TAVERN", "BUILDING", "HOUSE" -> 66;
             case "THORN", "THORNS" -> 3 + rand.nextInt(3);
             case "PLANT", "GRASS" -> 6 + rand.nextInt(11);

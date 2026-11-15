@@ -114,6 +114,8 @@ public class LevelRenderer implements Renderer {
                     ghost.setRotation(orig.getRotation());
                     ghost.setScaleX(orig.getScaleX());
                     ghost.setScaleY(orig.getScaleY());
+                    ghost.setOffsetX(orig.getOffsetX());
+                    ghost.setOffsetY(orig.getOffsetY());
                     renderSingleTile(g2d, ghost, ghost.getLayer());
                 }
             }

@@ -1,8 +1,11 @@
 package editor.utils;
 
+import editor.core.EditorAssetManager;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.Objects;
 
@@ -26,7 +29,11 @@ public class Utils {
     // Importing image: [(w, h) = (-1, -1) Original Size]
     public BufferedImage importImage(String name, int w, int h) {
         try {
-            BufferedImage image = ImageIO.read(Objects.requireNonNull(getClass().getResource(name)));
+            byte[] imageBytes = EditorAssetManager.getInstance().getAsset(name);
+            BufferedImage image;
+            if (imageBytes != null) image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            else image = ImageIO.read(Objects.requireNonNull(getClass().getResource(name)));
+
             if (w == -1 && h == -1) return image;
             Image temp = image.getScaledInstance(w, h, Image.SCALE_SMOOTH);
             BufferedImage resized = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);

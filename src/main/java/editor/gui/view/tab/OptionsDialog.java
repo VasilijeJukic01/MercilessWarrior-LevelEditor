@@ -232,6 +232,8 @@ public class OptionsDialog extends JDialog {
                         copy.setRotation(orig.getRotation());
                         copy.setScaleX(orig.getScaleX());
                         copy.setScaleY(orig.getScaleY());
+                        copy.setOffsetX(orig.getOffsetX());
+                        copy.setOffsetY(orig.getOffsetY());
                         updatedNodes.add(copy);
                     }
                 }

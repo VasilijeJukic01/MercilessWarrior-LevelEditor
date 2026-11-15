@@ -432,6 +432,8 @@ public class WorldMapDialog extends JDialog {
             ex.setMaxX(parseIntOrNull(exitsTableModel.getValueAt(i, 4)));
             ex.setMinY(parseIntOrNull(exitsTableModel.getValueAt(i, 5)));
             ex.setMaxY(parseIntOrNull(exitsTableModel.getValueAt(i, 6)));
+            ex.setSpawnX(parseIntOrNull(exitsTableModel.getValueAt(i, 7)));
+            ex.setSpawnY(parseIntOrNull(exitsTableModel.getValueAt(i, 8)));
             updated.add(ex);
         }
         controller.getSelectedRoom().setExits(updated);

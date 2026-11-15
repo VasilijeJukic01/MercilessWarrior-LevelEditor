@@ -3,64 +3,66 @@ package editor.generator.strategy;
 import editor.model.repository.Node;
 import editor.model.repository.components.Level;
 
-import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 /**
- * Carves an interconnected network of randomized caverns, stepped ledges, and L-shaped corridors separated by thick earth dividers.
+ * Carves a multi-tiered hollow with an upper and lower horizontal gallery separated by a thick subterranean earth slab, stepped floor terraces, and vertical shafts.
  */
 public class MultiPathHollowStrategy implements RoomCarverStrategy {
 
     @Override
     public void carve(Level parent, boolean[][] solid, List<Node> extraNodes, int w, int h, Random rand) {
-        int numRooms = 3 + rand.nextInt(3);
-        List<Rectangle> rooms = new ArrayList<>();
-
-        int leftY = 5 + rand.nextInt(Math.max(2, h - 12));
-        carveRect(solid, 0, leftY, 6, 4, w, h);
-        rooms.add(new Rectangle(4, leftY - 1, 8, 5));
-
-        for (int i = 0; i < numRooms; i++) {
-            int rw = Math.max(8, w / 3 + rand.nextInt(Math.max(3, w / 4)));
-            int rh = Math.max(5, 5 + rand.nextInt(4));
-            int rx = 4 + rand.nextInt(Math.max(2, w - rw - 8));
-            int ry = 4 + rand.nextInt(Math.max(2, h - rh - 8));
-            Rectangle room = new Rectangle(rx, ry, rw, rh);
-            rooms.add(room);
-            carveRect(solid, rx, ry, rw, rh, w, h);
-
-            if (rw >= 10 && rand.nextBoolean()) {
-                int stepW = 3 + rand.nextInt(rw / 2 - 2);
-                int stepX = rand.nextBoolean() ? rx : (rx + rw - stepW);
-                fillRect(solid, stepX, ry + rh - 2, stepW, 2, w, h);
-            }
+        if (h < 22) {
+            carveSingleTierSteppedHollow(solid, w, h, rand);
+            return;
         }
 
-        int rightY = 5 + rand.nextInt(Math.max(2, h - 12));
-        carveRect(solid, w - 6, rightY, 6, 4, w, h);
-        rooms.add(new Rectangle(w - 10, rightY - 1, 6, 5));
+        int topGalleryY = 4 + rand.nextInt(2), topGalleryH = Math.max(5, (h - 14) / 2);
+        int slabThickness = Math.max(4, Math.min(7, (h - 10) - topGalleryH * 2));
+        int botGalleryY = topGalleryY + topGalleryH + slabThickness;
+        int botGalleryH = Math.max(5, h - botGalleryY - 4);
 
-        for (int i = 0; i < rooms.size() - 1; i++) {
-            Rectangle a = rooms.get(i);
-            Rectangle b = rooms.get(i + 1);
-            int ax = (int) a.getCenterX(), ay = (int) a.getCenterY();
-            int bx = (int) b.getCenterX(), by = (int) b.getCenterY();
+        carveSteppedCorridor(solid, 4, w - 5, topGalleryY, topGalleryH, w, h, rand);
+        carveSteppedCorridor(solid, 4, w - 5, botGalleryY, botGalleryH, w, h, rand);
 
-            int hx = Math.min(ax, bx);
-            int hw = Math.abs(bx - ax) + 4;
-            carveRect(solid, hx, ay - 2, hw, 4, w, h);
+        int shaft1X = 7 + rand.nextInt(Math.max(3, w / 4));
+        int shaft2X = (w * 2) / 3 + rand.nextInt(Math.max(3, w / 5));
+        carveVerticalShaftWithSteps(solid, shaft1X, topGalleryY + topGalleryH - 1, botGalleryY + 1, w, h, rand);
+        carveVerticalShaftWithSteps(solid, shaft2X, topGalleryY + topGalleryH - 1, botGalleryY + 1, w, h, rand);
+    }
 
-            int vy = Math.min(ay, by);
-            int vh = Math.abs(by - ay) + 4;
-            carveRect(solid, bx - 2, vy, 5, vh, w, h);
+    private void carveSteppedCorridor(boolean[][] solid, int startX, int endX, int baseY, int baseH, int w, int h, Random rand) {
+        int curY = baseY;
+        int curH = baseH;
+        int segLen = 7 + rand.nextInt(5);
 
-            for (int py = vy + vh - 3; py > vy + 2; py -= 3) {
-                int platW = 1 + rand.nextInt(3);
-                int platX = bx - 1 + rand.nextInt(2);
-                fillRect(solid, platX, py, platW, 1, w, h);
+        for (int x = startX; x <= endX; x++) {
+            if ((x - startX) > 0 && (x - startX) % segLen == 0) {
+                int stepFloor = rand.nextInt(3) - 1;
+                int stepCeil = rand.nextInt(2);
+                curY = Math.max(3, Math.min(h - 9, curY + stepCeil));
+                curH = Math.max(5, Math.min(8, curH + stepFloor));
+                segLen = 6 + rand.nextInt(6);
+            }
+            for (int y = curY; y < Math.min(h - 3, curY + curH); y++) {
+                solid[x][y] = false;
             }
         }
+    }
+
+    private void carveVerticalShaftWithSteps(boolean[][] solid, int shaftX, int topY, int botY, int w, int h, Random rand) {
+        int sw = 5;
+        carveRect(solid, shaftX, topY, sw, botY - topY + 2, w, h);
+        boolean leftSide = rand.nextBoolean();
+        for (int y = botY - 1; y > topY + 2; y -= 3) {
+            int lx = leftSide ? (shaftX - 1) : (shaftX + sw - 2);
+            fillRect(solid, lx, y, 3, 2, w, h);
+            leftSide = !leftSide;
+        }
+    }
+
+    private void carveSingleTierSteppedHollow(boolean[][] solid, int w, int h, Random rand) {
+        carveSteppedCorridor(solid, 4, w - 5, 4, h - 8, w, h, rand);
     }
 }
