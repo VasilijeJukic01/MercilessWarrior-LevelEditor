@@ -9,6 +9,8 @@ import editor.model.repository.components.Project;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionListener;
@@ -39,6 +41,10 @@ public class WorldMapDialog extends JDialog {
     private final JSpinner spRoomX = new JSpinner(new SpinnerNumberModel(0, -500, 2000, 1));
     private final JSpinner spRoomY = new JSpinner(new SpinnerNumberModel(0, -500, 2000, 1));
 
+    // Save Totem Metadata Controls (-1 = No Totem)
+    private final JSpinner spTotemId = new JSpinner(new SpinnerNumberModel(-1, -1, 99, 1));
+    private final JTextField tfTotemName = new JTextField();
+
     // Room Environment & Biome Metadata Controls
     private final JComboBox<String> cbBiome;
     private final JComboBox<String> cbBackgroundId;
@@ -65,7 +71,7 @@ public class WorldMapDialog extends JDialog {
         this.cbTileset.setEditable(true);
 
         this.exitsTableModel = new DefaultTableModel(
-                new Object[]{"Trigger", "Target Room", "Spawn", "minX", "maxX", "minY", "maxY"}, 0
+                new Object[]{"Trigger", "Target Room", "Spawn", "minX", "maxX", "minY", "maxY", "spawnX", "spawnY"}, 0
         );
         this.exitsTable = new JTable(exitsTableModel);
         this.canvas = new WorldMapCanvas(controller, this::syncInspectorFromController, room -> {
@@ -78,7 +84,7 @@ public class WorldMapDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(1340, 800);
+        setSize(1340, 820);
         setLocationRelativeTo(getOwner());
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -186,11 +192,26 @@ public class WorldMapDialog extends JDialog {
         gbc.gridx = 1; gbc.gridwidth = 3; gbc.weightx = 1.0;
         roomCard.add(cbBackgroundId, gbc);
 
+        // Save Totem ID & Name row
+        spTotemId.setToolTipText("Set to -1 if this room has no Save Totem");
+        tfTotemName.setToolTipText("Display name shown in Fast Travel menu (e.g. Deepmoss Village)");
+        gbc.gridy = 4;
+        gbc.gridwidth = 1;
+        gbc.gridx = 0; gbc.weightx = 0;
+        roomCard.add(createWhiteLabel("Totem ID:"), gbc);
+        gbc.gridx = 1; gbc.weightx = 0.35;
+        roomCard.add(spTotemId, gbc);
+
+        gbc.gridx = 2; gbc.weightx = 0;
+        roomCard.add(createWhiteLabel("Totem Name:"), gbc);
+        gbc.gridx = 3; gbc.weightx = 0.65;
+        roomCard.add(tfTotemName, gbc);
+
         // Ambient Particles checkbox row
         chkAmbientParticles.setOpaque(false);
         chkAmbientParticles.setForeground(Color.WHITE);
         chkAmbientParticles.setFocusPainted(false);
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.gridx = 0; gbc.gridwidth = 4;
         roomCard.add(chkAmbientParticles, gbc);
 
@@ -204,6 +225,33 @@ public class WorldMapDialog extends JDialog {
             if (!suppressEvents && controller.getSelectedRoom() != null) {
                 controller.getSelectedRoom().setMapY((Integer) spRoomY.getValue());
                 canvas.repaint();
+            }
+        });
+
+        spTotemId.addChangeListener(e -> {
+            if (!suppressEvents && controller.getSelectedRoom() != null) {
+                int val = (Integer) spTotemId.getValue();
+                controller.getSelectedRoom().setTotemId(val >= 0 ? val : null);
+            }
+        });
+        tfTotemName.getDocument().addDocumentListener(new DocumentListener() {
+            private void update() {
+                if (!suppressEvents && controller.getSelectedRoom() != null) {
+                    String name = tfTotemName.getText().trim();
+                    controller.getSelectedRoom().setTotemName(name.isEmpty() ? null : name);
+                }
+            }
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                update();
+            }
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                update();
+            }
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                update();
             }
         });
 
@@ -261,7 +309,7 @@ public class WorldMapDialog extends JDialog {
 
         btnAddExit.addActionListener(e -> {
             if (controller.getSelectedRoom() != null) {
-                exitsTableModel.addRow(new Object[]{"LOAD_RIGHT_LEVEL", "", "SPAWN_B", "", "", "", ""});
+                exitsTableModel.addRow(new Object[]{"LOAD_RIGHT_LEVEL", "", "SPAWN_B", "", "", "", "", "", ""});
             }
         });
         btnRemoveExit.addActionListener(e -> {
@@ -391,6 +439,8 @@ public class WorldMapDialog extends JDialog {
             lbSelectedRoomInfo.setText(String.format("Room: %s  (%dx%d tiles)", selected.getId(), selected.getWidth(), selected.getHeight()));
             spRoomX.setValue(selected.getMapX());
             spRoomY.setValue(selected.getMapY());
+            spTotemId.setValue(selected.getTotemId() != null ? selected.getTotemId() : -1);
+            tfTotemName.setText(selected.getTotemName() != null ? selected.getTotemName() : "");
 
             LevelMetadata meta = selected.getLevelMetadata();
             cbBiome.setSelectedItem((meta != null && meta.getBiome() != null) ? meta.getBiome().toUpperCase() : "FOREST");
@@ -406,11 +456,16 @@ public class WorldMapDialog extends JDialog {
                         ex.getMinX() != null ? ex.getMinX() : "",
                         ex.getMaxX() != null ? ex.getMaxX() : "",
                         ex.getMinY() != null ? ex.getMinY() : "",
-                        ex.getMaxY() != null ? ex.getMaxY() : ""
+                        ex.getMaxY() != null ? ex.getMaxY() : "",
+                        ex.getSpawnX() != null ? ex.getSpawnX() : "",
+                        ex.getSpawnY() != null ? ex.getSpawnY() : ""
                 });
             }
-        } else {
+        }
+        else {
             lbSelectedRoomInfo.setText("No room selected");
+            spTotemId.setValue(-1);
+            tfTotemName.setText("");
         }
 
         Rectangle gap = controller.getMeasuredGap();

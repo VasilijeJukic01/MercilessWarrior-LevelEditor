@@ -10,6 +10,8 @@ public class RoomNodeMetadata {
 
     private Integer mapX;
     private Integer mapY;
+    private Integer totemId;
+    private String totemName;
     private List<RoomExitMetadata> exits = new ArrayList<>();
 
     public Integer getMapX() {
@@ -26,6 +28,22 @@ public class RoomNodeMetadata {
 
     public void setMapY(Integer mapY) {
         this.mapY = mapY;
+    }
+
+    public Integer getTotemId() {
+        return totemId;
+    }
+
+    public void setTotemId(Integer totemId) {
+        this.totemId = totemId;
+    }
+
+    public String getTotemName() {
+        return totemName;
+    }
+
+    public void setTotemName(String totemName) {
+        this.totemName = totemName;
     }
 
     public List<RoomExitMetadata> getExits() {

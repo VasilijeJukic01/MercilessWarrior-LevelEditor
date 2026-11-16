@@ -8,10 +8,10 @@ import java.util.List;
  */
 public class LevelMetadata {
 
-    private String backgroundId = "FOREST1";
-    private Boolean ambientParticlesEnabled = true;
-    private String tileset = "Forest";
-    private String biome = "FOREST";
+    private String backgroundId;
+    private Boolean ambientParticlesEnabled;
+    private String tileset;
+    private String biome;
     private String clearEnemiesFlag;
     private List<Object> lights;
     private List<Object> npcs;

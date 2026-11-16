@@ -238,6 +238,8 @@ public class MinimapGenerator {
             RoomNodeMetadata nodeMeta = new RoomNodeMetadata();
             nodeMeta.setMapX(r.getMapX());
             nodeMeta.setMapY(r.getMapY());
+            nodeMeta.setTotemId(r.getTotemId());
+            nodeMeta.setTotemName((r.getTotemName() != null && !r.getTotemName().trim().isEmpty()) ? r.getTotemName().trim() : null);
             nodeMeta.setExits(new ArrayList<>(r.getExits()));
             worldMeta.getRooms().put(r.getId(), nodeMeta);
         }

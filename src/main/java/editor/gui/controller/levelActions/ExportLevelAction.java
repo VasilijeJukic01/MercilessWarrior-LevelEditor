@@ -187,6 +187,10 @@ public class ExportLevelAction extends AbstractEditorAction {
                         if (metaToSave.getDecorations() == null || metaToSave.getDecorations().isEmpty()) {
                             metaToSave.setDecorations(onDisk.getDecorations());
                         }
+                        if (metaToSave.getBiome() == null) metaToSave.setBiome(onDisk.getBiome());
+                        if (metaToSave.getBackgroundId() == null) metaToSave.setBackgroundId(onDisk.getBackgroundId());
+                        if (metaToSave.getTileset() == null) metaToSave.setTileset(onDisk.getTileset());
+                        if (metaToSave.getAmbientParticlesEnabled() == null) metaToSave.setAmbientParticlesEnabled(onDisk.getAmbientParticlesEnabled());
                     }
                 } catch (Exception ignored) {}
             }

@@ -69,6 +69,8 @@ public class WorldMapController {
                 entry.setProjectLevel(lvl);
                 if (existing != null) {
                     entry.setExits(existing.getExits());
+                    entry.setTotemId(existing.getTotemId());
+                    entry.setTotemName(existing.getTotemName());
                     entry.setSourceImageFile(existing.getSourceImageFile());
                     entry.setMetaFile(existing.getMetaFile());
                     entry.setLevelMetadata(existing.getLevelMetadata());
@@ -96,7 +98,9 @@ public class WorldMapController {
                 BufferedImage img = ImageIO.read(f);
                 if (img == null || img.getWidth() < 78 || img.getWidth() % 3 != 0) continue;
                 String id = f.getName().substring(0, f.getName().lastIndexOf('.'));
-                if (id.endsWith("_restored") || id.equals("minimap")) continue;
+                if (id.endsWith("_restored") || id.equals("minimap") || id.equals("menu") || id.equals("tavern") || id.startsWith("levelarena")) {
+                    continue;
+                }
 
                 WorldMapRoomEntry existing = rooms.get(id);
                 int mx = (existing != null) ? existing.getMapX() : cursorX;
@@ -116,7 +120,11 @@ public class WorldMapController {
                 entry.setMetaFile(metaFile);
                 entry.setLevelMetadata(meta);
 
-                if (existing != null) entry.setExits(existing.getExits());
+                if (existing != null) {
+                    entry.setExits(existing.getExits());
+                    entry.setTotemId(existing.getTotemId());
+                    entry.setTotemName(existing.getTotemName());
+                }
                 rooms.put(id, entry);
                 cursorX += entry.getWidth() + 4;
             } catch (Exception ignored) {}
@@ -133,16 +141,20 @@ public class WorldMapController {
     private File detectCompanionMetaFile(File pngFile, String id) {
         File sameDir = new File(pngFile.getParentFile(), id + ".json");
         if (sameDir.exists()) return sameDir;
-        File levelsDir = pngFile.getParentFile();
-        if (levelsDir != null && levelsDir.getParentFile() != null && levelsDir.getParentFile().getParentFile() != null) {
-            File resourcesDir = levelsDir.getParentFile().getParentFile();
-            return new File(new File(resourcesDir, "meta"), id + ".json");
+
+        File curr = pngFile.getParentFile();
+        while (curr != null) {
+            File candidateMetaDir = new File(curr, "meta");
+            if (candidateMetaDir.exists() && candidateMetaDir.isDirectory()) {
+                return new File(candidateMetaDir, id + ".json");
+            }
+            curr = curr.getParentFile();
         }
         return sameDir;
     }
 
     /**
-     * Applies routing and layout positions from an existing world_map.json file over the currently loaded rooms.
+     * Applies routing, totem metadata, and layout positions from an existing world_map.json file over the currently loaded rooms.
      */
     public void loadWorldMapJson(File jsonFile) throws Exception {
         try (FileReader reader = new FileReader(jsonFile)) {
@@ -159,6 +171,8 @@ public class WorldMapController {
                         RoomNodeMetadata node = e.getValue();
                         if (node.getMapX() != null) room.setMapX(node.getMapX());
                         if (node.getMapY() != null) room.setMapY(node.getMapY());
+                        if (node.getTotemId() != null) room.setTotemId(node.getTotemId());
+                        if (node.getTotemName() != null) room.setTotemName(node.getTotemName());
                         if (node.getExits() != null) room.setExits(new ArrayList<>(node.getExits()));
                     }
                 }
@@ -170,7 +184,7 @@ public class WorldMapController {
     /**
      * Triggers the SAD template matching algorithm to automatically align isolated rooms to an existing minimap snapshot.
      */
-    public void autoAlignFromMinimapPng(File minimapFile) throws Exception {
+    public void autoAlignRoomsToMinimap(File minimapFile) throws Exception {
         router.autoAlignRoomsToMinimap(minimapFile, rooms.values(), Collections.emptySet());
         Framework.getInstance().log("Auto-aligned all rooms to minimap.png!", LogType.NOTIFICATION);
     }
@@ -213,19 +227,45 @@ public class WorldMapController {
     }
 
     /**
-     * Stitches the current canvas arrangement into the final game-ready minimap.png, applies visual patches, and dumps the world_map.json routing file.
+     * Stitches the current canvas arrangement into the final game-ready minimap.png, applies visual patches, and dumps the world_map.json routing file while preserving any existing totem metadata.
      *
      * @param minimapFile Output destination for minimap.png.
      * @param jsonFile Output destination for world_map.json.
      * @param startLvl The name of the room players spawn into on a fresh save.
      */
     public Dimension exportWorldMapAndMinimap(File minimapFile, File jsonFile, String startLvl) throws Exception {
+        if (jsonFile != null && jsonFile.exists()) {
+            try (FileReader reader = new FileReader(jsonFile)) {
+                WorldMapMetadata onDisk = new Gson().fromJson(reader, WorldMapMetadata.class);
+                if (onDisk != null && onDisk.getRooms() != null) {
+                    for (Map.Entry<String, RoomNodeMetadata> entry : onDisk.getRooms().entrySet()) {
+                        WorldMapRoomEntry r = rooms.get(entry.getKey());
+                        RoomNodeMetadata diskNode = entry.getValue();
+                        if (r != null && diskNode != null) {
+                            if (r.getTotemId() == null && diskNode.getTotemId() != null) {
+                                r.setTotemId(diskNode.getTotemId());
+                            }
+                            if ((r.getTotemName() == null || r.getTotemName().isEmpty()) && diskNode.getTotemName() != null) {
+                                r.setTotemName(diskNode.getTotemName());
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
         WorldMapMetadata worldMeta = new WorldMapMetadata();
         worldMeta.setStartLevel(startLvl);
 
         BufferedImage minimapOut = minimapGenerator.buildGlobalMinimapAndPopulateMetadata(rooms.values(), worldMeta);
+        if (minimapFile.getParentFile() != null && !minimapFile.getParentFile().exists()) {
+            minimapFile.getParentFile().mkdirs();
+        }
         ImageIO.write(minimapOut, "png", minimapFile);
 
+        if (jsonFile.getParentFile() != null && !jsonFile.getParentFile().exists()) {
+            jsonFile.getParentFile().mkdirs();
+        }
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         try (FileWriter writer = new FileWriter(jsonFile)) {
             gson.toJson(worldMeta, writer);
@@ -271,6 +311,7 @@ public class WorldMapController {
 
     /**
      * One-Click Import that auto-discovers all structural assets and assembles the world view completely automatically from any root project folder.
+     * Supports the 'images/levels/rooms' + 'images/levels/minimap/minimap.png' structure.
      *
      * @param selectedDir The root OS directory (e.g. /resources/ or /levels/) to initiate the scan from.
      */
@@ -278,15 +319,18 @@ public class WorldMapController {
         File resourcesRoot = resolveResourcesRoot(selectedDir);
         lastResourcesRoot = resourcesRoot;
 
-        File levelsDir = new File(resourcesRoot, "images/levels");
-        if (!levelsDir.exists()) levelsDir = selectedDir;
+        File roomsDir = new File(resourcesRoot, "images/levels/rooms");
+        if (!roomsDir.exists()) roomsDir = new File(resourcesRoot, "images/levels");
+        if (!roomsDir.exists()) roomsDir = selectedDir;
 
         File metaDir = new File(resourcesRoot, "meta");
-        loadedMinimapFile = new File(levelsDir, "minimap.png");
+        File newMinimapFile = new File(resourcesRoot, "images/levels/minimap/minimap.png");
+        File legacyMinimapFile = new File(resourcesRoot, "images/levels/minimap.png");
+        loadedMinimapFile = (newMinimapFile.exists() || newMinimapFile.getParentFile().exists()) ? newMinimapFile : legacyMinimapFile;
         loadedWorldMapJsonFile = new File(metaDir, "world_map.json");
 
         rooms.clear();
-        loadLevelsFromDirectory(levelsDir);
+        loadLevelsFromDirectory(roomsDir);
 
         Set<String> roomsWithSavedCoords = new HashSet<>();
         if (loadedWorldMapJsonFile.exists()) {
@@ -306,6 +350,9 @@ public class WorldMapController {
 
     private File resolveResourcesRoot(File dir) {
         if (new File(dir, "images/levels").exists() && new File(dir, "meta").exists()) return dir;
+        if (dir.getName().equalsIgnoreCase("rooms") && dir.getParentFile() != null && dir.getParentFile().getParentFile() != null && dir.getParentFile().getParentFile().getParentFile() != null) {
+            return dir.getParentFile().getParentFile().getParentFile();
+        }
         if (dir.getName().equalsIgnoreCase("levels") && dir.getParentFile() != null && dir.getParentFile().getParentFile() != null) {
             return dir.getParentFile().getParentFile();
         }

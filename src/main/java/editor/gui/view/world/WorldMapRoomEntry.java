@@ -23,6 +23,8 @@ public class WorldMapRoomEntry {
     private final int height;
     private int mapX;
     private int mapY;
+    private Integer totemId;
+    private String totemName;
 
     private final BufferedImage combinedImage;
     private final BufferedImage panel1Image;
@@ -77,6 +79,22 @@ public class WorldMapRoomEntry {
 
     public void setMapY(int mapY) {
         this.mapY = mapY;
+    }
+
+    public Integer getTotemId() {
+        return totemId;
+    }
+
+    public void setTotemId(Integer totemId) {
+        this.totemId = totemId;
+    }
+
+    public String getTotemName() {
+        return totemName;
+    }
+
+    public void setTotemName(String totemName) {
+        this.totemName = totemName;
     }
 
     public BufferedImage getCombinedImage() {
