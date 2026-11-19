@@ -8,6 +8,11 @@ import java.util.List;
  */
 public class LevelMetadata {
 
+    public static final String DEFAULT_BACKGROUND_ID = "FOREST1";
+    public static final boolean DEFAULT_AMBIENT_PARTICLES = true;
+    public static final String DEFAULT_TILESET = "Forest";
+    public static final String DEFAULT_BIOME = "FOREST";
+
     private String backgroundId;
     private Boolean ambientParticlesEnabled;
     private String tileset;
@@ -17,6 +22,53 @@ public class LevelMetadata {
     private List<Object> npcs;
     private List<Object> objects;
     private List<ObjectMetadata> decorations = new ArrayList<>();
+
+    public void ensureDefaults(String fallbackTileset) {
+        if (backgroundId == null || backgroundId.isBlank()) {
+            backgroundId = DEFAULT_BACKGROUND_ID;
+        }
+        if (ambientParticlesEnabled == null) {
+            ambientParticlesEnabled = DEFAULT_AMBIENT_PARTICLES;
+        }
+        if (tileset == null || tileset.isBlank()) {
+            tileset = (fallbackTileset != null && !fallbackTileset.isBlank()) ? fallbackTileset : DEFAULT_TILESET;
+        }
+        if (biome == null || biome.isBlank()) {
+            biome = DEFAULT_BIOME;
+        }
+        if (decorations == null) {
+            decorations = new ArrayList<>();
+        }
+    }
+
+    public LevelMetadata copy() {
+        LevelMetadata clone = new LevelMetadata();
+        clone.setBackgroundId(this.backgroundId);
+        clone.setAmbientParticlesEnabled(this.ambientParticlesEnabled);
+        clone.setTileset(this.tileset);
+        clone.setBiome(this.biome);
+        clone.setClearEnemiesFlag(this.clearEnemiesFlag);
+        if (this.lights != null) clone.setLights(new ArrayList<>(this.lights));
+        if (this.npcs != null) clone.setNpcs(new ArrayList<>(this.npcs));
+        if (this.objects != null) clone.setObjects(new ArrayList<>(this.objects));
+        if (this.decorations != null) {
+            List<ObjectMetadata> decoCopies = new ArrayList<>(this.decorations.size());
+            for (ObjectMetadata om : this.decorations) {
+                ObjectMetadata omCopy = new ObjectMetadata();
+                omCopy.setX(om.getX());
+                omCopy.setY(om.getY());
+                omCopy.setLayer(om.getLayer());
+                omCopy.setRotation(om.getRotation());
+                omCopy.setScaleX(om.getScaleX());
+                omCopy.setScaleY(om.getScaleY());
+                omCopy.setOffsetX(om.getOffsetX());
+                omCopy.setOffsetY(om.getOffsetY());
+                decoCopies.add(omCopy);
+            }
+            clone.setDecorations(decoCopies);
+        }
+        return clone;
+    }
 
     public String getBackgroundId() {
         return backgroundId;

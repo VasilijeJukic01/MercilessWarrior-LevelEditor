@@ -300,9 +300,6 @@ public class MinimapGenerator {
         else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.SHOP.ordinal()) {
             icons.add(new int[]{Math.min(maxW - 1, x + 1), Math.min(maxH - 1, y + 2), ICON_SHOP});
         }
-        else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.BLACKSMITH.ordinal()) {
-            icons.add(new int[]{x, Math.min(maxH - 1, y + 1), ICON_BLACKSMITH});
-        }
         else if (r1 == 254 && g1 == 254 && b1 == LvlObjType.TABLE.ordinal()) {
             icons.add(new int[]{x, Math.min(maxH - 1, y + 1), ICON_CRAFTING});
         }
@@ -310,7 +307,10 @@ public class MinimapGenerator {
             icons.add(new int[]{x, y, ICON_BOSS});
         }
         else if (c3.getRed() == 0 && c3.getGreen() == 0 && c3.getBlue() < LvlNpcType.MAX.ordinal()) {
-            icons.add(new int[]{x, y, ICON_NPC});
+            int npcId = c3.getBlue();
+            if (npcId == LvlNpcType.BLACKSMITH.ordinal()) {
+                icons.add(new int[]{x, y, ICON_BLACKSMITH});
+            }
         }
     }
 

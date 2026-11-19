@@ -128,7 +128,7 @@ public final class Storage {
         List<Tile> objectTiles = new ArrayList<>();
         for (int i = 0; i < objectsTilesImg.length; i++) {
             LvlObjType objType = LvlObjType.values()[i];
-            if (objType == LvlObjType.WATER) {
+            if (objType == LvlObjType.WATER || objType == LvlObjType.WATERFALL) {
                 objectsTilesImg[i] = createProceduralWaterIcon();
             }
             else {

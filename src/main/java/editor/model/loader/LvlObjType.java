@@ -14,13 +14,13 @@ public enum LvlObjType {
     COIN("Coin",                    TILE_SIZE/2, TILE_SIZE/2, 15, 20),          // 7
     SHOP("Shop",                    TILE_SIZE_4, TILE_SIZE_3, 0, 8),            // 8
     BLOCKER("Blocker",              TILE_SIZE, TILE_SIZE_3+16, 0, -8),          // 9
-    BLACKSMITH("Blacksmith",        TILE_SIZE, TILE_SIZE+TILE_SIZE/2, 0, 40),   // 10
-    DOG("Dog",                      TILE_SIZE, TILE_SIZE, 0, 8),                // 11
+    WATER("Water",                  TILE_SIZE, TILE_SIZE, 0, 8),                // 10
+    WATERFALL("Waterfall",          TILE_SIZE, TILE_SIZE, 0, 0),                // 11
     TOTEM("Totem",                  TILE_SIZE, TILE_SIZE, 0, 12),               // 12
     SMASH_TRAP("SmashTrap",         TILE_SIZE, TILE_SIZE_2, 0, -15),            // 13
     CANDLE("Candle",                TILE_SIZE, TILE_SIZE_2, 0, 8),              // 14
     LOOT("Loot",                    TILE_SIZE, TILE_SIZE, 0, 8),                // 15
-    TABLE("Table",                  TILE_SIZE_2, TILE_SIZE_2, 0, 32),                // 16
+    TABLE("Table",                  TILE_SIZE_2, TILE_SIZE_2, 0, 32),           // 16
     BOARD("Board",                  TILE_SIZE_2, TILE_SIZE_2, 0, 8),            // 17
     NPC("NPC",                      TILE_SIZE, (int)(TILE_SIZE*1.3), 0, 8),     // 18
     LAVA("Lava",                    TILE_SIZE, TILE_SIZE, 0, 8),                // 19
@@ -32,8 +32,7 @@ public enum LvlObjType {
     HERB_PLACEHOLDER("Placeholder", 1, 1, 0, 0),                                // 25 Ignore
     TRAP_PLACEHOLDER("Placeholder", 1, 1, 0, 0),                                // 26 Ignore
     DOOR("Door",                    TILE_SIZE, (int)(TILE_SIZE*1.5), 0, 0),     // 27
-    WATER("Water",                  TILE_SIZE, TILE_SIZE, 0, 8),                // 28
-    MAX("",                         0,0,0,0);
+    MAX("",                         0, 0, 0, 0);                                // 28
 
     private final String id;
     private final int wid, hei;

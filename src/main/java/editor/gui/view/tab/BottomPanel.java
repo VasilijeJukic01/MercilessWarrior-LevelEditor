@@ -191,6 +191,9 @@ public class BottomPanel extends JPanel {
 
     private void getTileset(String selectedItem) {
         tabView.getSettings().updateParameter(SettingsKey.TILE_SET, selectedItem);
+        if (tabView.getLevel() != null) {
+            tabView.getLevel().getMetadata().setTileset(selectedItem);
+        }
         reload(false);
     }
 

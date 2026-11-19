@@ -222,6 +222,7 @@ public class ProjectOptionsDialog extends JDialog {
 
         Level source = (Level) project.getChildren().get(idx);
         Level clone = new Level(source.getName() + " Copy", project, source.getWidth(), source.getHeight());
+        clone.setMetadata(source.getMetadata().copy());
 
         for (Node n : source.getChildren()) {
             if (n instanceof Tile orig) {

@@ -14,6 +14,7 @@ import editor.model.repository.Node;
 import editor.model.repository.components.Level;
 import editor.model.repository.components.Tile;
 import editor.model.repository.components.TileType;
+import editor.settings.SettingsKey;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -23,6 +24,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ExportLevelAction extends AbstractEditorAction {
 
@@ -45,19 +48,24 @@ public class ExportLevelAction extends AbstractEditorAction {
         File jsonFile = dialog.getOutputJsonFile();
         String mode = dialog.getSelectedExportMode();
         boolean saveMeta = dialog.isExportMetadataSelected();
+        String activeTileset = (String) tab.getSettings().getParameter(SettingsKey.TILE_SET);
 
-        exportLevelToFiles(tab.getLevel(), mode, saveMeta, pngFile, jsonFile);
+        exportLevelToFiles(tab.getLevel(), mode, saveMeta, pngFile, jsonFile, activeTileset);
     }
 
     /**
      * Builds the pixel image for the given level and export mode, writes the PNG, and optionally writes the companion rotation/scale JSON metadata file.
      */
     public static void exportLevelToFiles(Level level, String exportMode, boolean saveMetadata, File pngFile, File jsonFile) {
+        exportLevelToFiles(level, exportMode, saveMetadata, pngFile, jsonFile, null);
+    }
+
+    public static void exportLevelToFiles(Level level, String exportMode, boolean saveMetadata, File pngFile, File jsonFile, String fallbackTileset) {
         try {
             BufferedImage exportImg = buildExportImage(level, exportMode);
             ImageIO.write(exportImg, "png", pngFile);
             Framework.getInstance().log("Level exported to: " + pngFile.getAbsolutePath(), LogType.NOTIFICATION);
-            if (saveMetadata && jsonFile != null) saveMetadataAsJson(level, jsonFile);
+            if (saveMetadata && jsonFile != null) saveMetadataAsJson(level, jsonFile, fallbackTileset);
         } catch (Exception ex) {
             Framework.getInstance().log("Failed to export level: " + ex.getMessage(), LogType.ERROR);
             JOptionPane.showMessageDialog(EditorFrame.getInstance(), "Failed to export level:\n" + ex.getMessage(), "Export Error", JOptionPane.ERROR_MESSAGE);
@@ -122,32 +130,16 @@ public class ExportLevelAction extends AbstractEditorAction {
      * Saves or updates a level's companion .json metadata file, preserving any existing rules while updating env properties and decoration transforms.
      */
     public static void saveMetadataAsJson(Level level, File targetFile) {
-        LevelMetadata levelMetadata = (level.getMetadata() != null) ? level.getMetadata() : new LevelMetadata();
+        saveMetadataAsJson(level, targetFile, null);
+    }
 
-        if (targetFile.exists()) {
-            try (FileReader reader = new FileReader(targetFile)) {
-                LevelMetadata existing = new Gson().fromJson(reader, LevelMetadata.class);
-                if (existing != null) {
-                    if (level.getMetadata() != null) {
-                        if (level.getMetadata().getBiome() != null) existing.setBiome(level.getMetadata().getBiome());
-                        if (level.getMetadata().getBackgroundId() != null) existing.setBackgroundId(level.getMetadata().getBackgroundId());
-                        if (level.getMetadata().getTileset() != null) existing.setTileset(level.getMetadata().getTileset());
-                        if (level.getMetadata().getAmbientParticlesEnabled() != null) {
-                            existing.setAmbientParticlesEnabled(level.getMetadata().getAmbientParticlesEnabled());
-                        }
-                    }
-                    levelMetadata = existing;
-                }
-            } catch (Exception ex) {
-                Framework.getInstance().log("Failed to read existing metadata: " + ex.getMessage(), LogType.WARNING);
-            }
-        }
+    /**
+     * Saves or updates a level's companion .json metadata file, preserving loaded/edited fields, merging any missing fields from disk, applying defaults for new levels, and updating decoration transforms.
+     */
+    public static void saveMetadataAsJson(Level level, File targetFile, String fallbackTileset) {
+        LevelMetadata toSave = (level.getMetadata() != null) ? level.getMetadata().copy() : new LevelMetadata();
 
-        if (levelMetadata.getDecorations() == null) {
-            levelMetadata.setDecorations(new java.util.ArrayList<>());
-        }
-        else levelMetadata.getDecorations().clear();
-
+        List<ObjectMetadata> decorations = new ArrayList<>();
         for (Node child : level.getChildren()) {
             Tile tile = (Tile) child;
             if (tile.getTileType() == TileType.DECO && tile.hasCustomTransform()) {
@@ -160,17 +152,22 @@ public class ExportLevelAction extends AbstractEditorAction {
                 metadata.setScaleY(tile.getScaleY());
                 metadata.setOffsetX(tile.getOffsetX());
                 metadata.setOffsetY(tile.getOffsetY());
-                levelMetadata.getDecorations().add(metadata);
+                decorations.add(metadata);
             }
         }
+        toSave.setDecorations(decorations);
 
-        saveRoomMetadataFile(levelMetadata, targetFile);
+        saveRoomMetadataFile(toSave, targetFile, false, fallbackTileset);
     }
 
     /**
      * Writes a LevelMetadata instance directly to a .json file, merging with any existing lights/npcs/objects/decorations on disk.
      */
     public static void saveRoomMetadataFile(LevelMetadata metaToSave, File targetFile) {
+        saveRoomMetadataFile(metaToSave, targetFile, true, null);
+    }
+
+    private static void saveRoomMetadataFile(LevelMetadata metaToSave, File targetFile, boolean preserveExistingDecorationsIfEmpty, String fallbackTileset) {
         if (metaToSave == null || targetFile == null) return;
         try {
             if (targetFile.getParentFile() != null && !targetFile.getParentFile().exists()) {
@@ -184,7 +181,7 @@ public class ExportLevelAction extends AbstractEditorAction {
                         if (metaToSave.getNpcs() == null) metaToSave.setNpcs(onDisk.getNpcs());
                         if (metaToSave.getObjects() == null) metaToSave.setObjects(onDisk.getObjects());
                         if (metaToSave.getClearEnemiesFlag() == null) metaToSave.setClearEnemiesFlag(onDisk.getClearEnemiesFlag());
-                        if (metaToSave.getDecorations() == null || metaToSave.getDecorations().isEmpty()) {
+                        if (preserveExistingDecorationsIfEmpty && (metaToSave.getDecorations() == null || metaToSave.getDecorations().isEmpty())) {
                             metaToSave.setDecorations(onDisk.getDecorations());
                         }
                         if (metaToSave.getBiome() == null) metaToSave.setBiome(onDisk.getBiome());
@@ -194,6 +191,9 @@ public class ExportLevelAction extends AbstractEditorAction {
                     }
                 } catch (Exception ignored) {}
             }
+
+            metaToSave.ensureDefaults(fallbackTileset);
+
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             try (FileWriter writer = new FileWriter(targetFile)) {
                 gson.toJson(metaToSave, writer);

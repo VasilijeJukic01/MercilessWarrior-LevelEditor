@@ -64,16 +64,20 @@ public class WorldMapController {
                 int my = (existing != null) ? existing.getMapY() : 0;
 
                 BufferedImage combined = ExportLevelAction.buildExportImage(lvl, "Both");
-                LevelMetadata meta = (existing != null && existing.getLevelMetadata() != null) ? existing.getLevelMetadata() : lvl.getMetadata();
+                LevelMetadata lvlMeta = lvl.getMetadata();
+                boolean lvlHasMeta = lvlMeta != null && (lvlMeta.getBiome() != null || lvlMeta.getBackgroundId() != null || lvlMeta.getTileset() != null || lvlMeta.getAmbientParticlesEnabled() != null);
+                LevelMetadata meta = lvlHasMeta ? lvlMeta : ((existing != null && existing.getLevelMetadata() != null) ? existing.getLevelMetadata() : lvlMeta);
+
+                lvl.setMetadata(meta);
                 WorldMapRoomEntry entry = minimapGenerator.createEntryFromCombinedImage(lvl.getName(), combined, mx, my, meta);
                 entry.setProjectLevel(lvl);
+                entry.setLevelMetadata(meta);
                 if (existing != null) {
                     entry.setExits(existing.getExits());
                     entry.setTotemId(existing.getTotemId());
                     entry.setTotemName(existing.getTotemName());
                     entry.setSourceImageFile(existing.getSourceImageFile());
                     entry.setMetaFile(existing.getMetaFile());
-                    entry.setLevelMetadata(existing.getLevelMetadata());
                 }
                 rooms.put(lvl.getName(), entry);
                 cursorX += lvl.getWidth() + 4;
@@ -203,11 +207,13 @@ public class WorldMapController {
         if (measuredGap == null) return null;
         activeProject = tabBridge.ensureProjectExists(activeProject);
 
+        LevelMetadata meta = new LevelMetadata();
+        meta.ensureDefaults(null);
         Level newLvl = new Level(name, activeProject, measuredGap.width, measuredGap.height);
+        newLvl.setMetadata(meta);
         tabBridge.addLevelToProjectAndOpenTab(activeProject, newLvl);
 
         BufferedImage combined = ExportLevelAction.buildExportImage(newLvl, "Both");
-        LevelMetadata meta = new LevelMetadata();
         WorldMapRoomEntry entry = minimapGenerator.createEntryFromCombinedImage(name, combined, measuredGap.x, measuredGap.y, meta);
         entry.setProjectLevel(newLvl);
         entry.setLevelMetadata(meta);

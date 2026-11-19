@@ -29,12 +29,11 @@ public class ImportLevelAction extends AbstractEditorAction {
                 File imageFile = fileChooser.getSelectedFile();
                 if (!Utils.getInstance().isValidExtension(imageFile)) return;
 
-                String jsonPath = imageFile.getAbsolutePath().replaceAll("(?i)\\.png$", ".json");
-                File metadataFile = new File(jsonPath);
+                File metadataFile = findCompanionMetadataFile(imageFile);
                 LevelMetadata metadata = null;
 
-                if (metadataFile.exists()) {
-                    Framework.getInstance().log("Found metadata file: " + metadataFile.getName(), LogType.INFORMATION);
+                if (metadataFile != null && metadataFile.exists()) {
+                    Framework.getInstance().log("Found metadata file: " + metadataFile.getAbsolutePath(), LogType.INFORMATION);
                     try (FileReader reader = new FileReader(metadataFile)) {
                         metadata = new Gson().fromJson(reader, LevelMetadata.class);
                     } catch (Exception jsonEx) {
@@ -48,6 +47,20 @@ public class ImportLevelAction extends AbstractEditorAction {
                 Framework.getInstance().log("An error occurred during import: " + ex.getMessage(), LogType.ERROR);
             }
         }
+    }
+
+    private File findCompanionMetadataFile(File imageFile) {
+        String id = imageFile.getName().replaceAll("(?i)\\.png$", "");
+        File sameDir = new File(imageFile.getParentFile(), id + ".json");
+        if (sameDir.exists()) return sameDir;
+
+        File curr = imageFile.getParentFile();
+        while (curr != null) {
+            File candidate = new File(new File(curr, "meta"), id + ".json");
+            if (candidate.exists()) return candidate;
+            curr = curr.getParentFile();
+        }
+        return sameDir;
     }
 
 }

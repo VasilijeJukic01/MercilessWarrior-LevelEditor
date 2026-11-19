@@ -88,10 +88,17 @@ public class WorldMapTabBridge {
         Level targetLevel = room.getProjectLevel();
         if (targetLevel == null) {
             targetLevel = new Level(room.getId(), project, room.getWidth(), room.getHeight());
+            if (room.getLevelMetadata() != null) {
+                targetLevel.setMetadata(room.getLevelMetadata());
+            }
             populateLevelNodesFromCombinedImage(room.getCombinedImage(), room.getLevelMetadata(), targetLevel, 0, 0);
             room.setProjectLevel(targetLevel);
             addLevelToProjectAndOpenTab(project, targetLevel);
-        } else {
+        }
+        else {
+            if (room.getLevelMetadata() != null) {
+                targetLevel.setMetadata(room.getLevelMetadata());
+            }
             focusOrOpenLevelTab(project, targetLevel);
         }
         Framework.getInstance().log("Opened room '" + room.getId() + "' in editor tab.", LogType.NOTIFICATION);

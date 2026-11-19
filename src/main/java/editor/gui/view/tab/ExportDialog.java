@@ -26,7 +26,7 @@ public class ExportDialog extends JDialog {
             "Triggers & NPCs only (Panel 3)"
     });
     private final JTextField tfOutputPath = new JTextField();
-    private final JCheckBox chkExportMetadata = new JCheckBox("Export rotation/scale metadata (.json) alongside PNG");
+    private final JCheckBox chkExportMetadata = new JCheckBox("Export level metadata (.json) alongside PNG");
     private final PixelPreviewPanel previewPanel = new PixelPreviewPanel();
 
     private boolean confirmed = false;
@@ -39,22 +39,10 @@ public class ExportDialog extends JDialog {
         String safeName = level.getName().trim().replaceAll("\\s+", "_");
         tfOutputPath.setText(new File(safeName + ".png").getAbsolutePath());
 
-        boolean hasTransformedDecos = hasRotatedOrScaledDecos();
-        chkExportMetadata.setSelected(hasTransformedDecos);
+        chkExportMetadata.setSelected(true);
 
         initUI();
         updatePreview();
-    }
-
-    private boolean hasRotatedOrScaledDecos() {
-        for (Node n : level.getChildren()) {
-            if (n instanceof Tile t && t.getTileType() == TileType.DECO) {
-                if (t.hasCustomTransform()) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private void initUI() {

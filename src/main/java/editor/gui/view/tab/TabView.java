@@ -62,6 +62,7 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         this.settings = new EditorSettings(this);
         initSettings();
         this.level = level;
+        initMeta();
         this.level.addSubscriber(this);
         initBars();
         initCentralPanels();
@@ -88,6 +89,18 @@ public class TabView extends JPanel implements AdjustmentListener, NodeSubscribe
         this.settings.addParameter(SettingsKey.SMART_BRUSH, true);
         this.settings.addParameter(SettingsKey.CAVE_BRUSH, false);
         this.settings.addParameter(SettingsKey.SELECTED_REGION, null);
+    }
+
+    private void initMeta() {
+        String metaTileset = this.level.getMetadata().getTileset();
+        if (metaTileset != null) {
+            for (String available : Framework.getInstance().getStorage().getTilesetNames()) {
+                if (available.equalsIgnoreCase(metaTileset)) {
+                    this.settings.addParameter(SettingsKey.TILE_SET, available);
+                    break;
+                }
+            }
+        }
     }
 
     private void initBars() {

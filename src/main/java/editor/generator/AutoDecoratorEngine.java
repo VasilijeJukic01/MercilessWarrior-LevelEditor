@@ -30,7 +30,7 @@ public class AutoDecoratorEngine {
     private static final int[] SHORT_PILLAR_VINES = {17, 19, 20, 21};
     private static final int DECO_MOSS1_BIG = 28;
     private static final int DECO_VINES5_WALL = 29;
-    private static final int[] UNDER_GRASS_STRIPS = {123, 125, 126, 127, 128, 131};
+    private static final int[] UNDER_GRASS_STRIPS = {123, 125, 126, 127, 128, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149};
 
     private static final int DECO_LEFT_END = 35;
     private static final int DECO_RIGHT_END = 36;

@@ -462,8 +462,6 @@ public class AiBlueprintApplier {
             case "ARROW_TRAP_RIGHT", "O6" -> entityPopulator.createObj(level, x, floorAirY, LvlObjType.ARROW_TRAP_RIGHT.ordinal());
             case "SHOP", "O8" -> entityPopulator.createObj(level, x, floorAirY - 3, LvlObjType.SHOP.ordinal());
             case "BLOCKER", "O9" -> entityPopulator.createObj(level, x, floorAirY - 2, LvlObjType.BLOCKER.ordinal());
-            case "BLACKSMITH", "O10" -> entityPopulator.createObj(level, x, floorAirY - 1, LvlObjType.BLACKSMITH.ordinal());
-            case "DOG", "O11" -> entityPopulator.createObj(level, x, floorAirY, LvlObjType.DOG.ordinal());
             case "TOTEM", "SAVE_TOTEM", "O12" -> entityPopulator.createObj(level, x, floorAirY, LvlObjType.TOTEM.ordinal());
             case "SMASH_TRAP", "O13" -> {
                 int ceilY = entityPopulator.snapToCeilingY(solid, x, floorAirY);

@@ -54,9 +54,12 @@ public class LevelLoader implements Loader {
             if (metadata != null) {
                 level.setMetadata(metadata);
                 applyMetadata(level, metadata);
+                syncTabTileset(metadata.getTileset());
                 Framework.getInstance().log("Successfully applied metadata for " + name, LogType.INFORMATION);
+            } else {
+                level.setMetadata(new LevelMetadata());
             }
-            Framework.getInstance().log("Level imported: "+name, LogType.INFORMATION);
+            Framework.getInstance().log("Level imported: " + name, LogType.INFORMATION);
         }
         catch (Exception e) {
             Framework.getInstance().log("Failed to import level: " + e.getMessage(), LogType.ERROR);
@@ -64,10 +67,10 @@ public class LevelLoader implements Loader {
     }
 
     private void applyMetadata(Level level, LevelMetadata metadata) {
+        if (metadata.getDecorations() == null) return;
         for (ObjectMetadata meta : metadata.getDecorations()) {
             for (Node node : level.getChildren()) {
-                if (node instanceof Tile) {
-                    Tile tile = (Tile) node;
+                if (node instanceof Tile tile) {
                     if (tile.getTileType() == TileType.DECO && tile.getX() == meta.getX() && tile.getY() == meta.getY() && tile.getLayer() == meta.getLayer()) {
                         tile.setRotation(meta.getRotation());
                         tile.setScaleX(meta.getScaleX() != 0 ? meta.getScaleX() : 1.0);
@@ -77,6 +80,19 @@ public class LevelLoader implements Loader {
                         break;
                     }
                 }
+            }
+        }
+    }
+
+    private void syncTabTileset(String tilesetName) {
+        if (tilesetName == null || tilesetName.isBlank()) return;
+        editor.gui.view.tab.TabView tab = EditorFrame.getInstance().getCurrentTab();
+        if (tab == null) return;
+        for (String available : Framework.getInstance().getStorage().getTilesetNames()) {
+            if (available.equalsIgnoreCase(tilesetName)) {
+                tab.getSettings().updateParameter(editor.settings.SettingsKey.TILE_SET, available);
+                tab.reload();
+                return;
             }
         }
     }
